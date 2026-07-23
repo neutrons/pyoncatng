@@ -48,6 +48,21 @@ ruff check .          # lint
 pip install --no-deps -e .   # editable install
 ```
 
+### Optional direnv integration
+
+If a checkout has a local `.envrc`, developers using [`direnv`](https://direnv.net/) can
+have the Pixi environment activated automatically when entering the repository. The local
+`.envrc` used in this checkout watches `pixi.lock` and evaluates Pixi's shell hook:
+
+```bash
+watch_file pixi.lock
+eval "$(pixi shell-hook --frozen --change-ps1 false)"
+```
+
+This is only a local convenience. `.envrc` is ignored by Git, is not required for normal
+development, and may differ between developers. Without `direnv`, use `pixi shell` or
+`pixi run ...` directly.
+
 ## Testing
 
 ```bash
