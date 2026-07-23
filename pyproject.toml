@@ -19,9 +19,6 @@ dependencies = [
 [project.optional-dependencies]
 docs = ["sphinx", "sphinx_rtd_theme", "versioningit", "myst_parser"]
 
-[project.scripts]
-pyoncatng = "pyoncatng.version:get_version"
-
 [project.urls]
 homepage = "https://github.com/neutrons/pyoncatng/"
 repository = "https://github.com/neutrons/pyoncatng/"
