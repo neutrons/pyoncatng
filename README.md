@@ -16,6 +16,34 @@ It provides **[NiceGUI](https://nicegui.io/) widgets** for building web UIs agai
 It is the NiceGUI-based sibling of [`pyoncatqt`](https://github.com/neutrons/pyoncatqt/),
 which offers the same capabilities as Qt widgets.
 
+## Widgets
+
+`pyoncatng` provides reusable [NiceGUI](https://nicegui.io/) widgets you can drop into any
+page. The full API reference lives on the **Widgets** page of the documentation, and runnable
+examples are under [`tutorials/`](tutorials/).
+
+### Login
+
+`OncatLogin` (`pyoncatng.widgets.login.OncatLogin`) is a card that signs in to ONCAT using
+`pyoncat`'s OAuth device-authorization flow (approval happens in the browser — there is no
+username/password field). It shows a circle status indicator (empty = disconnected,
+green = connected, amber = busy; the exact status is a hover tooltip) alongside **Connect** and
+**Log out** buttons, and reports failures as notifications.
+
+```python
+from pyoncatng.widgets.login import OncatLogin
+
+login = OncatLogin(client_id="...")                 # or key="myapp" to read <key>_id from config
+login.on_connection_change(lambda connected: ...)   # react to connect / disconnect
+agent = login.agent                                 # the authenticated pyoncat.ONCat client
+```
+
+Keyword-only constructor arguments: `client_id` **or** `key` (one is required), `timeout`
+(default `10.0`), `login_title` (sign-in dialog heading), and `orientation` (`"row"`, the
+default, or `"column"` to stack the buttons). Public surface: `.agent`, `.is_connected`, and
+`.on_connection_change(callback)`. See the [login tutorial](tutorials/login/) for a runnable
+example.
+
 ## Tutorials
 
 Runnable, per-widget examples live in [`tutorials/`](tutorials/). For instance, run the
