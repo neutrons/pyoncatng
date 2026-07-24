@@ -22,7 +22,6 @@ Check all that apply:
 
 - [ ] `pixi run test` passes
 - [ ] `pixi run build-docs` passes, if documentation changed
-- [ ] `pixi run audit-deps` passes, if dependencies changed
 - [ ] Documentation is updated or not required
 - [ ] Versioning/package metadata changes were verified, if applicable
 

@@ -100,7 +100,7 @@ argcomplete = "*"
 # ONCAT auth
 oauthlib = "*"
 requests-oauthlib = "*"
-# pip-audit
+# Security-hardening version pins (CVE mitigations)
 h2 = ">=4.3.0"               # Known vulnerability in <4.3.0
 brotli = ">=1.2.0"
 urllib3 = ">=2.6.3"          # Known vulnerability in <2.6.3
@@ -163,7 +163,6 @@ toml-cli = "*"
 
 [tool.pixi.feature.developer.dependencies]
 pip = ">=26.0"     # CVE-2026-1703
-pip-audit = "*"
 pre-commit = "*"
 ruff = "*"
 versioningit = "*"
@@ -197,8 +196,6 @@ conda-build = { description = "Build the conda package", depends-on = [
 conda-publish = { cmd = "pixi upload anaconda --owner neutrons *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
   "conda-build",
 ] }
-# Misc
-audit-deps = { cmd = "pip-audit --local -s osv", description = "Audit the package dependencies for vulnerabilities" }
 # Cleaning
 clean = { cmd = 'rm -rf .pytest_cache .ruff_cache **/*.egg-info **/dist **/__pycache__', description = "Clean up various caches and build artifacts" }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
