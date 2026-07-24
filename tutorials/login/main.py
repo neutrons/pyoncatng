@@ -23,7 +23,7 @@ def index() -> None:
     """The single tutorial page: an ONCat login card and a live status readout."""
     with ui.column().classes("q-pa-md"):
         ui.label("pyoncatng demo").classes("text-h5")
-        login = OncatLogin(client_id=get_data("login.oncat", "client_id"), orientation="column")
+        login = OncatLogin(client_id=get_data("login.oncat", "client_id"), orientation="row")
         status = ui.label("Not connected")
         login.on_connection_change(
             lambda connected: status.set_text("Connected to ONCat" if connected else "Not connected")

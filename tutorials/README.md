@@ -1,14 +1,12 @@
-# pyoncatng tutorials
+# Tutorials
 
 Runnable, self-contained examples of the `pyoncatng` NiceGUI widgets. Each
 tutorial is a subfolder containing:
 
-- a `README.md` explaining what the tutorial demonstrates, its prerequisites,
-  how to run it, and what to expect, and
+- `README.md`
 - the code needed to run it (typically a `main.py` NiceGUI app).
 
-Tutorials live outside the `pyoncatng` package (they are not shipped in the
-wheel); they import the installed library just like any downstream app would.
+Tutorials live outside the `pyoncatng` package and import the installed library just like any downstream app would.
 
 ## Running a tutorial
 
