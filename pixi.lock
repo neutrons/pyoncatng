@@ -7492,7 +7492,9 @@ packages:
   requires_dist:
   - argcomplete
   - nicegui
+  - oauthlib
   - pyoncat>=2.6
+  - requests-oauthlib
   - myst-parser ; extra == 'docs'
   - sphinx ; extra == 'docs'
   - sphinx-rtd-theme ; extra == 'docs'
