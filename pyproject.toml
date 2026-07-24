@@ -23,7 +23,7 @@ docs = ["sphinx", "sphinx_rtd_theme", "versioningit", "myst_parser"]
 [project.urls]
 homepage = "https://github.com/neutrons/pyoncatng/"
 repository = "https://github.com/neutrons/pyoncatng/"
-# documentation = add_url_to_readthedoc_here
+documentation = "https://pyoncatng.readthedocs.io/"
 issues = "https://github.com/neutrons/pyoncatng/issues"
 
 ####################
