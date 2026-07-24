@@ -14,6 +14,7 @@ dependencies = [
   # Dependencies available from both PyPI and conda should be listed here
   "pyoncat>=2.6",
   "nicegui",
+  "argcomplete",
 ]
 
 [project.optional-dependencies]
@@ -22,7 +23,7 @@ docs = ["sphinx", "sphinx_rtd_theme", "versioningit", "myst_parser"]
 [project.urls]
 homepage = "https://github.com/neutrons/pyoncatng/"
 repository = "https://github.com/neutrons/pyoncatng/"
-# documentation = add_url_to_readthedoc_here
+documentation = "https://pyoncatng.readthedocs.io/"
 issues = "https://github.com/neutrons/pyoncatng/issues"
 
 ####################
@@ -92,6 +93,8 @@ platforms = ["linux-64", "osx-arm64"] # add additional platforms as needed
 pyoncat = ">=2.6"
 # GUI
 nicegui = "*"
+# CLI shell completion
+argcomplete = "*"
 # pip-audit
 h2 = ">=4.3.0"               # Known vulnerability in <4.3.0
 brotli = ">=1.2.0"
@@ -118,6 +121,7 @@ versioningit = "*"
 python = ">=3.10"
 pyoncat = ">=2.6"
 nicegui = "*"
+argcomplete = "*"
 
 [tool.pixi.package]
 name = "pyoncatng"
@@ -173,6 +177,8 @@ ipywidgets = "*"
 # Documentation
 build-docs = { cmd = 'sphinx-build -b html docs docs/_build', description = "Build documentation" }
 test-docs = { cmd = "sphinx-build -M doctest docs docs/_build", description = "Test building the documentation" }
+# Tutorials
+tutorial-login = { cmd = "python tutorials/login/main.py", description = "Run the ONCat login tutorial" }
 # Testing
 test = { description = "Run the test suite", cmd = "pytest" }
 # Packaging
@@ -221,10 +227,14 @@ reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.ba
 ##############
 
 [tool.pytest.ini_options]
-addopts = "-v --cov=pyoncatng --cov-report=term-missing --cov-report=xml"
+addopts = "-p nicegui.testing.user_plugin -v --cov=pyoncatng --cov-report=term-missing --cov-report=xml"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 python_files = ["test*.py"]
+# nicegui.testing runs async fixtures/tests; auto mode avoids per-test markers
+asyncio_mode = "auto"
+# NiceGUI main file executed by the `user` fixture to register the pages under test
+main_file = "tests/nicegui_main.py"
 norecursedirs = [
   ".git",
   "tmp*",

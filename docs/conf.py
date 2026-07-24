@@ -55,6 +55,12 @@ master_doc = "index"
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+# Included repo READMEs (e.g. tutorials/README.md) use repo-relative links that
+# are correct on GitHub but do not resolve to doc pages. Suppress only that
+# cross-reference warning so ReadTheDocs' fail_on_warning still catches real
+# problems.
+suppress_warnings = ["myst.xref_missing"]
+
 
 # -- Options for HTML output -------------------------------------------------
 

@@ -170,3 +170,6 @@ src/pyoncatng/_version.py
 
 # do not track conda package archive from pixi-build
 *.conda
+
+# NiceGUI per-user storage (may contain OAuth tokens)
+.nicegui/
