@@ -16,6 +16,17 @@ It provides **[NiceGUI](https://nicegui.io/) widgets** for building web UIs agai
 It is the NiceGUI-based sibling of [`pyoncatqt`](https://github.com/neutrons/pyoncatqt/),
 which offers the same capabilities as Qt widgets.
 
+## Tutorials
+
+Runnable, per-widget examples live in [`tutorials/`](tutorials/). For instance, run the
+ONCat login tutorial with:
+
+```bash
+pixi run tutorial-login
+```
+
+See [`tutorials/README.md`](tutorials/README.md) for the full list.
+
 ## Getting Started
 
 This project is managed entirely with [Pixi](https://pixi.sh/), a reproducible and declarative

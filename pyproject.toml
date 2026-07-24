@@ -177,6 +177,8 @@ ipywidgets = "*"
 # Documentation
 build-docs = { cmd = 'sphinx-build -b html docs docs/_build', description = "Build documentation" }
 test-docs = { cmd = "sphinx-build -M doctest docs docs/_build", description = "Test building the documentation" }
+# Tutorials
+tutorial-login = { cmd = "python tutorials/login/main.py", description = "Run the ONCat login tutorial" }
 # Testing
 test = { description = "Run the test suite", cmd = "pytest" }
 # Packaging
@@ -225,10 +227,14 @@ reset-toml = { cmd = "cp pyproject.toml.bak pyproject.toml; rm pyproject.toml.ba
 ##############
 
 [tool.pytest.ini_options]
-addopts = "-v --cov=pyoncatng --cov-report=term-missing --cov-report=xml"
+addopts = "-p nicegui.testing.user_plugin -v --cov=pyoncatng --cov-report=term-missing --cov-report=xml"
 pythonpath = [".", "src"]
 testpaths = ["tests"]
 python_files = ["test*.py"]
+# nicegui.testing runs async fixtures/tests; auto mode avoids per-test markers
+asyncio_mode = "auto"
+# NiceGUI main file executed by the `user` fixture to register the pages under test
+main_file = "tests/nicegui_main.py"
 norecursedirs = [
   ".git",
   "tmp*",

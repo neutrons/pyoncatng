@@ -7,6 +7,7 @@ Welcome to the pyoncatng docs!
    :caption: Contents:
 
    README
+   tutorials
 
 =========================================
 Indices and tables
