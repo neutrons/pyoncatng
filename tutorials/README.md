@@ -27,6 +27,7 @@ python tutorials/login/main.py
 | Tutorial | Description |
 | --- | --- |
 | [`login/`](login/) | Sign in to ONCat with the `OncatLogin` widget (OAuth device-authorization flow). |
+| [`runtable/`](runtable/) | Browse run data with the read-only `RunTable` widget (draggable columns, locked `run_number`). |
 
 As new widgets are added (table, search, …), add a new subfolder here plus a
 matching `tutorial-<name>` task in `pyproject.toml`.

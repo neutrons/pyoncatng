@@ -19,3 +19,26 @@ and the sign-in dialog provides the browser approval link and device code.
 .. autoclass:: pyoncatng.widgets.login.OncatLogin
    :members:
 ```
+
+## Run table
+
+```{figure} media/runtable.png
+:alt: RunTable widget showing one row per run and one column per processing variable
+:width: 100%
+
+The run table renders one row per run and one column per processing variable
+(here `run_number`, `run_title`, `start_time`, `duration`, `counts`, and
+`LambdaRequest`). Cells are read-only, header clicks do not sort the rows (so the
+supplied run order is preserved), and rows cannot be dragged. Columns can be
+reordered by dragging their headers, except the key column (`run_number` by
+default), which is locked to the leftmost position.
+```
+
+Fetching the data from ONCat is out of scope for the widget: a caller builds the
+ordered list of column names and the rows (a list of per-run dicts keyed by
+processing-variable name) and passes them to the constructor.
+
+```{eval-rst}
+.. autoclass:: pyoncatng.widgets.runtable.RunTable
+   :members:
+```
