@@ -9,6 +9,24 @@ request time, so a test can patch the agent before opening a page.
 from nicegui import ui
 
 from pyoncatng.widgets.login import OncatLogin
+from pyoncatng.widgets.runtable import RunTable
+
+# Column set and generated rows for the RunTable pages. Fetching from ONCat is
+# out of scope, so the tests supply the data directly.
+RUNTABLE_COLUMNS = ["run_number", "run_title", "start_time", "LambdaRequest"]
+
+
+def _sample_rows(count: int = 3) -> list[dict]:
+    """Generate `count` run rows keyed by the RunTable columns."""
+    return [
+        {
+            "run_number": 47775 + i,
+            "run_title": f"Title {i}",
+            "start_time": f"2023-01-01 0{i}:00",
+            "LambdaRequest": 5400 + i,
+        }
+        for i in range(count)
+    ]
 
 
 def _with_readout(login: OncatLogin) -> None:
@@ -50,6 +68,30 @@ def badorientation_page() -> None:
 def noargs_page() -> None:
     try:
         OncatLogin()
+    except ValueError as err:
+        ui.label(f"error: {err}")
+
+
+@ui.page("/runtable")
+def runtable_page() -> None:
+    RunTable(columns=RUNTABLE_COLUMNS, rows=_sample_rows())
+
+
+@ui.page("/runtable-empty")
+def runtable_empty_page() -> None:
+    RunTable(columns=RUNTABLE_COLUMNS)
+
+
+@ui.page("/runtable-keylast")
+def runtable_keylast_page() -> None:
+    # run_number listed last on purpose: the widget must still put it first.
+    RunTable(columns=["run_title", "start_time", "run_number"], rows=_sample_rows())
+
+
+@ui.page("/runtable-badkey")
+def runtable_badkey_page() -> None:
+    try:
+        RunTable(columns=["run_title", "start_time"])  # no run_number
     except ValueError as err:
         ui.label(f"error: {err}")
 
