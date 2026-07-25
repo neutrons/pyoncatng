@@ -15,6 +15,8 @@ dependencies = [
   "pyoncat>=2.6",
   "nicegui",
   "argcomplete",
+  "oauthlib",
+  "requests-oauthlib",
 ]
 
 [project.optional-dependencies]
@@ -95,7 +97,10 @@ pyoncat = ">=2.6"
 nicegui = "*"
 # CLI shell completion
 argcomplete = "*"
-# pip-audit
+# ONCAT auth
+oauthlib = "*"
+requests-oauthlib = "*"
+# Security-hardening version pins (CVE mitigations)
 h2 = ">=4.3.0"               # Known vulnerability in <4.3.0
 brotli = ">=1.2.0"
 urllib3 = ">=2.6.3"          # Known vulnerability in <2.6.3
@@ -122,6 +127,8 @@ python = ">=3.10"
 pyoncat = ">=2.6"
 nicegui = "*"
 argcomplete = "*"
+oauthlib = "*"
+requests-oauthlib = "*"
 
 [tool.pixi.package]
 name = "pyoncatng"
@@ -149,8 +156,6 @@ pytest-xdist = "*"
 pytest-asyncio = "*" # required by nicegui.testing for widget tests
 
 [tool.pixi.feature.package.dependencies]
-twine = ">=6.1.0,<7" # for PyPI publishing
-hatch = "*"          # for building wheels and sdist
 versioningit = "*"
 
 [tool.pixi.feature.package.pypi-dependencies]
@@ -158,7 +163,6 @@ toml-cli = "*"
 
 [tool.pixi.feature.developer.dependencies]
 pip = ">=26.0"     # CVE-2026-1703
-pip-audit = "*"
 pre-commit = "*"
 ruff = "*"
 versioningit = "*"
@@ -182,18 +186,6 @@ tutorial-login = { cmd = "python tutorials/login/main.py", description = "Run th
 # Testing
 test = { description = "Run the test suite", cmd = "pytest" }
 # Packaging
-pypi-sdist = { cmd = "hatch build -t sdist", description = "Build the source distribution (tar.gz)" }
-pypi-wheel = { cmd = "hatch build -t wheel", description = "Build the wheel distribution" }
-pypi-build = { description = "Build the packages for PyPI", depends-on = [
-  "pypi-sdist",
-  "pypi-wheel",
-] }
-pypi-publish = { cmd = "twine upload dist/*", description = "Publish the package to PyPI", depends-on = [
-  "pypi-build",
-] }
-pypi-publish-test = { cmd = "twine upload --repository testpypi dist/*", description = "Publish the package to TestPyPI", depends-on = [
-  "pypi-build",
-] }
 conda-build-command = { cmd = "pixi publish --target-channel ./local-channel", description = "Build the conda package command" }
 conda-build = { description = "Build the conda package", depends-on = [
   "backup-toml",
@@ -204,18 +196,14 @@ conda-build = { description = "Build the conda package", depends-on = [
 conda-publish = { cmd = "pixi upload anaconda --owner neutrons *.conda", description = "Publish the .conda package to anaconda.org", depends-on = [
   "conda-build",
 ] }
-# Misc
-audit-deps = { cmd = "pip-audit --local -s osv", description = "Audit the package dependencies for vulnerabilities" }
 # Cleaning
 clean = { cmd = 'rm -rf .pytest_cache .ruff_cache **/*.egg-info **/dist **/__pycache__', description = "Clean up various caches and build artifacts" }
 clean-conda = { cmd = "rm -f *.conda", description = "Clean the local .conda build artifacts" }
 clean-docs = { cmd = "rm -rf docs/_build", description = "Clean up documentation build artifacts" }
-clean-pypi = { cmd = "rm -rf dist", description = "Clean the PyPI build artifacts" }
 clean-all = { description = "Clean all artifacts", depends-on = [
   "clean",
   "clean-conda",
   "clean-docs",
-  "clean-pypi",
 ] }
 # workaround for dynamic versioning
 sync-version = { cmd = 'version=$(python -m versioningit); toml set tool.pixi.package.version "$version" --toml-path pyproject.toml', description = "Sync pyproject.toml version with Git version" }
