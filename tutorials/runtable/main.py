@@ -44,7 +44,7 @@ _DURATIONS = [5400, 5400, 6300, 4500, 2700, 5400, 5400, 6300, 5400, 3600, 5400, 
 def _sample_rows() -> list[dict]:
     """Build sample run rows keyed by the RunTable columns."""
     rows = []
-    for i, (title, duration) in enumerate(zip(_TITLES, _DURATIONS)):
+    for i, (title, duration) in enumerate(zip(_TITLES, _DURATIONS, strict=True)):
         rows.append(
             {
                 "run_number": 47775 + i,

@@ -46,6 +46,11 @@ def test_column_defs_requires_key_column() -> None:
         RunTable.build_column_defs(["run_title", "start_time"])
 
 
+def test_column_defs_rejects_duplicate_columns() -> None:
+    with pytest.raises(ValueError):
+        RunTable.build_column_defs(["run_number", "run_title", "run_title"])
+
+
 def test_column_defs_custom_key_column() -> None:
     defs = RunTable.build_column_defs(["a", "b", "c"], key_column="b")
     assert defs[0]["field"] == "b"

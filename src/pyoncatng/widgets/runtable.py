@@ -81,11 +81,15 @@ class RunTable(ui.aggrid):
         Raises
         ------
         ValueError
-            If ``key_column`` is not present in ``columns``.
+            If ``key_column`` is not present in ``columns``, or if ``columns``
+            contains duplicate names.
         """
         columns = list(columns)
         if key_column not in columns:
             raise ValueError(f"key_column {key_column!r} must be one of the columns: {columns}.")
+        if len(set(columns)) != len(columns):
+            # Duplicate fields would bind several columns to the same value.
+            raise ValueError(f"columns must be unique, got: {columns}.")
 
         # Key column first and locked left, regardless of its slot in `columns`.
         defs: List[Dict[str, Any]] = [
