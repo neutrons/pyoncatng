@@ -3,7 +3,7 @@
 Reusable NiceGUI widgets provided by `pyoncatng`. Each widget can be dropped into
 any NiceGUI page; see the [Tutorials](tutorials.md) for runnable examples.
 
-## Login
+## OncatLogin
 
 ```{figure} media/login-widget-overview.png
 :alt: ONCat login widget in row and column orientations, disconnected and connected states, plus sign-in dialog
