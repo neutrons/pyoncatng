@@ -6,8 +6,10 @@ works during the simulation). The page bodies build the widget lazily, at
 request time, so a test can patch the agent before opening a page.
 """
 
+from fakes import FakeAgent
 from nicegui import ui
 
+from pyoncatng.widgets.iptstable import IPTSTable
 from pyoncatng.widgets.login import OncatLogin
 from pyoncatng.widgets.runtable import RunTable
 
@@ -94,6 +96,13 @@ def runtable_badkey_page() -> None:
         RunTable(columns=["run_title", "start_time"])  # no run_number
     except ValueError as err:
         ui.label(f"error: {err}")
+
+
+@ui.page("/iptstable")
+def iptstable_page() -> None:
+    # Build with a fresh fake agent; tests reach it via the widget element
+    # (``IPTSTable._agent``) to script its ``Run.list`` before clicking Load.
+    IPTSTable(agent=FakeAgent(), facility="SNS", instrument="USANS")
 
 
 if __name__ in {"__main__", "__mp_main__"}:

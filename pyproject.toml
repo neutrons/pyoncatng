@@ -184,6 +184,7 @@ test-docs = { cmd = "sphinx-build -M doctest docs docs/_build", description = "T
 # Tutorials
 tutorial-login = { cmd = "python tutorials/login/main.py", description = "Run the ONCat login tutorial" }
 tutorial-runtable = { cmd = "python tutorials/runtable/main.py", description = "Run the RunTable tutorial" }
+tutorial-iptstable = { cmd = "python tutorials/iptstable/main.py", description = "Run the IPTSTable tutorial" }
 # Testing
 test = { description = "Run the test suite", cmd = "pytest" }
 # Packaging
