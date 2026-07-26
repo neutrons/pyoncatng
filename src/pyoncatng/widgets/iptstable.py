@@ -113,18 +113,26 @@ class IPTSTable(ui.card):
     # -- UI construction ----------------------------------------------------
 
     def _build_ui(self) -> None:
+        # Fill the available width and lay children out in a column so the table
+        # grows to whatever height the caller gives the widget (e.g. via
+        # ``.style("height: 600px")``); AG Grid needs a concrete height to fill.
+        self.classes("w-full column")
         with self:
-            with ui.row().classes("items-center"):
+            with ui.row().classes("items-center w-full"):
                 ui.label("IPTS:")
                 self._input = ui.input(placeholder="e.g. 24703").props("dense")
                 # Load on click, and also on Enter for convenience.
                 self._input.on("keydown.enter", self._on_load)
                 self._load_button = ui.button("Load", on_click=self._on_load)
-            self._table = RunTable(
-                columns=self.column_names(),
-                rows=[],
-                key_column=KEY_COLUMN,
-            ).style("width: 100%")
+            self._table = (
+                RunTable(
+                    columns=self.column_names(),
+                    rows=[],
+                    key_column=KEY_COLUMN,
+                )
+                .classes("w-full")
+                .style("flex: 1 1 auto; min-height: 300px")
+            )
             self._message = ui.label("").classes("text-negative")
             self._message.set_visibility(False)
 

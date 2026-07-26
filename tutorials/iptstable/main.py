@@ -38,7 +38,8 @@ def index() -> None:
         login = OncatLogin(client_id=get_data("login.oncat", "client_id"), orientation="row")
         # The agent is created once and reused; passing it now is fine even though
         # it starts disconnected -- it becomes usable after the sign-in above.
-        IPTSTable(agent=login.agent, facility="SNS", instrument="USANS").style("height: 460px")
+        # Size the widget here; the table fills the given height and width.
+        IPTSTable(agent=login.agent, facility="SNS", instrument="USANS").classes("w-full").style("height: 600px")
 
 
 def _build_parser() -> argparse.ArgumentParser:
