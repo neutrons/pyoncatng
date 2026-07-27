@@ -48,6 +48,12 @@ def test_normalize_ipts_blank_is_none() -> None:
     assert IPTSTable.normalize_ipts(None) is None
 
 
+def test_normalize_ipts_prefix_only_is_none() -> None:
+    # Only the prefix (no number) is effectively blank, not "IPTS-".
+    assert IPTSTable.normalize_ipts("IPTS-") is None
+    assert IPTSTable.normalize_ipts("ipts-   ") is None
+
+
 def test_column_names_match_spec() -> None:
     assert IPTSTable.column_names() == ["ID", "Title", "Start Time", "Total Counts"]
 
@@ -172,3 +178,15 @@ async def test_iptstable_load_button_triggers_fetch(user: User) -> None:
     # Clicking Load runs the async handler end to end.
     await user.should_see("No runs found for IPTS-24703.")
     assert widget._agent.run_calls == 1
+
+
+async def test_iptstable_load_is_guarded_while_busy(user: User) -> None:
+    await user.open("/iptstable")
+    widget = _widget(user)
+    widget._input.value = "24703"
+    widget._busy = True  # simulate a load already in flight
+
+    await widget._on_load()
+
+    # The guard short-circuits, so no overlapping fetch is issued.
+    assert widget._agent.run_calls == 0

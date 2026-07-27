@@ -67,6 +67,7 @@ class IPTSTable(ui.card):
         self._agent = agent
         self._facility = facility
         self._instrument = instrument
+        self._busy = False
         self._build_ui()
 
     # -- pure helpers (unit-testable without a UI context) ------------------
@@ -83,7 +84,8 @@ class IPTSTable(ui.card):
         if not value:
             return None
         if value.upper().startswith("IPTS-"):
-            return "IPTS-" + value.split("-", 1)[1].strip()
+            suffix = value.split("-", 1)[1].strip()
+            return f"IPTS-{suffix}" if suffix else None
         return f"IPTS-{value}"
 
     @staticmethod
@@ -146,12 +148,17 @@ class IPTSTable(ui.card):
 
     async def _on_load(self, _event: Any = None) -> None:
         """Fetch runs for the entered IPTS and repopulate the table."""
+        # Guard against overlapping loads: the button is disabled while busy, but
+        # the Enter key handler stays live and could otherwise re-enter here.
+        if self._busy:
+            return
         self._set_message("")
         experiment = self.normalize_ipts(self._input.value)
         if experiment is None:
             self._set_message("Please enter an IPTS number.")
             return
 
+        self._busy = True
         self._load_button.set_enabled(False)
         try:
             runs = await asyncio.to_thread(
@@ -170,4 +177,5 @@ class IPTSTable(ui.card):
             self._table.set_rows([])
             self._set_message(f"Could not load runs for {experiment}: {error}")
         finally:
+            self._busy = False
             self._load_button.set_enabled(True)
