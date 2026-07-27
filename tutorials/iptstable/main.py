@@ -40,6 +40,13 @@ def index() -> None:
         # it starts disconnected -- it becomes usable after the sign-in above.
         # Size the widget here; the table fills the given height and width.
         IPTSTable(agent=login.agent, facility="SNS", instrument="USANS").classes("w-full").style("height: 600px")
+        # A short note on the underlying RunTable's interactions.
+        ui.markdown(
+            "**Tip:** drag a column header left or right to reorder the columns "
+            "&mdash; except **ID**, which stays pinned as the first column. "
+            "Header clicks do not sort, cells are read-only, and rows cannot be "
+            "dragged, so the run order is fixed."
+        ).classes("text-caption")
 
 
 def _build_parser() -> argparse.ArgumentParser:
