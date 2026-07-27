@@ -45,6 +45,14 @@ processing-variable name) and passes them to the constructor.
 
 ## IPTS run table
 
+```{figure} media/iptstable.png
+:alt: IPTSTable widget showing an IPTS input, a Load button, and a run table with ID, Title, Start Time, and Total Counts columns
+:width: 100%
+
+The IPTS run table: enter an IPTS number and click **Load** to fetch that
+experiment's runs (here IPTS-24703 on SNS / USANS), one row per run.
+```
+
 `IPTSTable` composes an IPTS input and a **Load** button over a
 [`RunTable`](#run-table). The user types an IPTS number (a bare number such as
 `24703`, which is normalized to `IPTS-24703`) and clicks **Load**; the widget
