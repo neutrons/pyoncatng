@@ -18,6 +18,20 @@ class _Facility:
         return []
 
 
+class _Run:
+    """Stand-in for ``agent.Run`` exposing a scriptable ``list()``."""
+
+    def __init__(self, agent: "FakeAgent") -> None:
+        self._agent = agent
+
+    def list(self, **kwargs):  # noqa: A003 - mirrors the pyoncat resource API
+        self._agent.run_calls += 1
+        self._agent.run_kwargs = kwargs
+        if self._agent.run_error is not None:
+            raise self._agent.run_error
+        return list(self._agent.run_result)
+
+
 class FakeAgent:
     """A scriptable replacement for :class:`pyoncat.ONCat`.
 
@@ -27,8 +41,11 @@ class FakeAgent:
       * ``emit_challenge`` -- whether ``login()`` invokes the verification handler.
       * ``login_mode`` -- ``"success"`` | ``"cancel"`` | ``"error"``.
       * ``logout_error`` -- exception raised by ``logout()`` (or None).
+      * ``run_result`` -- runs returned by ``Run.list()`` (default empty).
+      * ``run_error`` -- exception raised by ``Run.list()`` (or None).
     Observations: ``facility_calls``, ``login_calls``, ``logout_calls``,
-    ``login_seen_token`` (token visible to pyoncat at the moment ``login`` ran).
+    ``login_seen_token`` (token visible to pyoncat at the moment ``login`` ran),
+    ``run_calls``, ``run_kwargs`` (the last kwargs passed to ``Run.list()``).
     """
 
     def __init__(self) -> None:
@@ -37,6 +54,8 @@ class FakeAgent:
         self.emit_challenge = True
         self.login_mode = "success"
         self.logout_error = None
+        self.run_result = []
+        self.run_error = None
 
         self.verification_handler = None
         self.token_getter = None
@@ -46,6 +65,8 @@ class FakeAgent:
         self.login_calls = 0
         self.logout_calls = 0
         self.login_seen_token = "unset"
+        self.run_calls = 0
+        self.run_kwargs = None
 
         self.challenge = types.SimpleNamespace(
             verification_uri="https://oncat.example/verify",
@@ -56,6 +77,10 @@ class FakeAgent:
     @property
     def Facility(self) -> _Facility:  # noqa: N802 - mirrors the pyoncat resource API
         return _Facility(self)
+
+    @property
+    def Run(self) -> _Run:  # noqa: N802 - mirrors the pyoncat resource API
+        return _Run(self)
 
     def has_stored_token(self) -> bool:
         return self.tokened
