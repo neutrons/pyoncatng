@@ -43,6 +43,7 @@ Then open the printed URL (default <http://127.0.0.1:8080>).
 
 - The widget receives the authenticated agent from the login card
   (`IPTSTable(agent=login.agent)`). It does not manage the connection itself.
-- The displayed columns map to `run["id"]` and the `metadata.entry.*` paths
-  `title`, `start_time`, and `total_counts`. Adjust `COLUMN_SPEC` in
-  `pyoncatng.widgets.iptstable` to show different metadata.
+- The displayed columns map to `run["id"]` and the raw-datafile metadata a run
+  aggregates, under `datafiles.raw.metadata.entry.*` (`title`, `start_time`,
+  `total_counts`). Adjust `COLUMN_SPEC` in `pyoncatng.widgets.iptstable` to show
+  different metadata.

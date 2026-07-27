@@ -17,12 +17,13 @@ from pyoncatng.widgets.iptstable import COLUMN_SPEC, IPTSTable
 from pyoncatng.widgets.runtable import RunTable
 
 # A sample run as returned by ONCat with a flat, dot-path projection (which is
-# what ``run.get("metadata.entry.title")`` resolves to for the real client too).
+# what ``run.get("datafiles.raw.metadata.entry.title")`` resolves to for the real
+# client too). USANS runs expose metadata under datafiles.raw.metadata.entry.*.
 SAMPLE_RUN = {
     "id": 33221,
-    "metadata.entry.title": "Align:0 stop rheometer",
-    "metadata.entry.start_time": "2020-11-24T06:33:53.879457667-05:00",
-    "metadata.entry.total_counts": 258881,
+    "datafiles.raw.metadata.entry.title": "Align:0 stop rheometer",
+    "datafiles.raw.metadata.entry.start_time": "2020-11-24T06:33:53.879457667-05:00",
+    "datafiles.raw.metadata.entry.total_counts": 258881,
 }
 
 # -- unit tests: pure helpers -------------------------------------------------
@@ -53,9 +54,9 @@ def test_column_names_match_spec() -> None:
 
 def test_build_projection_is_the_path_backed_columns() -> None:
     assert IPTSTable.build_projection() == [
-        "metadata.entry.title",
-        "metadata.entry.start_time",
-        "metadata.entry.total_counts",
+        "datafiles.raw.metadata.entry.title",
+        "datafiles.raw.metadata.entry.start_time",
+        "datafiles.raw.metadata.entry.total_counts",
     ]
 
 

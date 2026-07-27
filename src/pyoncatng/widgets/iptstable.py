@@ -24,14 +24,15 @@ from ..core.runs import list_runs
 from .runtable import RunTable
 
 # Ordered ``(display column, run path)`` pairs backing the table. A ``None`` path
-# means the run's own ``id`` (the run number). These mirror the "usansred" run
-# table shown by the ONCat website (ID, Title, Start Time, Total Counts).
+# means the run's own ``id`` (the run number). The other columns read the raw
+# datafile metadata a run aggregates, under ``datafiles.raw.metadata.entry.*``
+# (verified against SNS/USANS runs; a run's own ``metadata`` is not populated).
 ColumnSpec = Sequence[Tuple[str, Optional[str]]]
 COLUMN_SPEC: List[Tuple[str, Optional[str]]] = [
     ("ID", None),
-    ("Title", "metadata.entry.title"),
-    ("Start Time", "metadata.entry.start_time"),
-    ("Total Counts", "metadata.entry.total_counts"),
+    ("Title", "datafiles.raw.metadata.entry.title"),
+    ("Start Time", "datafiles.raw.metadata.entry.start_time"),
+    ("Total Counts", "datafiles.raw.metadata.entry.total_counts"),
 ]
 
 # The column pinned leftmost in the RunTable (the run number).
