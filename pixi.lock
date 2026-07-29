@@ -208,7 +208,6 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/13/bc/8c13eb66537dce1d2bd3a57132902f38d0e7f5bb46fa9f4daed9fe9d76ee/tomlkit-0.15.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/71/986ceea9aa3da548bf1357cad89b63915ec6d21ec957c8113b29ece567df/regex-2026.7.19-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: https://files.pythonhosted.org/packages/1b/06/afddf412c604732b8924b5ab7dc6f34fc1f136fda0bff179d27adb0053a7/pyoncat-2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/b8/f0b9b880c03a3db8eaff63d76ca751ac7d8e45483fb7a0bb9f8e5c6ce433/toml_cli-0.8.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl
       osx-arm64:
@@ -392,7 +391,6 @@ environments:
       - pypi: ./
       - pypi: https://files.pythonhosted.org/packages/13/bc/8c13eb66537dce1d2bd3a57132902f38d0e7f5bb46fa9f4daed9fe9d76ee/tomlkit-0.15.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/14/2f/967ba146e6d58cf6a652da73885f52fc68001525b4197effc174321d70b4/jmespath-1.1.0-py3-none-any.whl
-      - pypi: https://files.pythonhosted.org/packages/1b/06/afddf412c604732b8924b5ab7dc6f34fc1f136fda0bff179d27adb0053a7/pyoncat-2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/87/74/0b692da2520d51fbff19c88b83d97e4c702909dd02386c585998b7e2dbed/regex-2026.7.19-cp314-cp314-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/d2/b8/f0b9b880c03a3db8eaff63d76ca751ac7d8e45483fb7a0bb9f8e5c6ce433/toml_cli-0.8.2-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl
@@ -689,7 +687,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-4.1.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/oncat/noarch/pyoncat-2.6-pyh4616a5c_0.conda
       - pypi: ./
-      - pypi: https://files.pythonhosted.org/packages/1b/06/afddf412c604732b8924b5ab7dc6f34fc1f136fda0bff179d27adb0053a7/pyoncat-2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl
       osx-arm64:
       - conda: https://conda.anaconda.org/conda-forge/noarch/_python_abi3_support-1.0-hd8ed1ab_3.conda
@@ -970,7 +967,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hbf9d68e_6.conda
       - conda: https://conda.anaconda.org/oncat/noarch/pyoncat-2.6-pyh4616a5c_0.conda
       - pypi: ./
-      - pypi: https://files.pythonhosted.org/packages/1b/06/afddf412c604732b8924b5ab7dc6f34fc1f136fda0bff179d27adb0053a7/pyoncat-2.6-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f2/58/bc8954bda5fcda97bd7c19be11b85f91973d67a706ed4a3aec33e7de22db/jaraco_context-6.1.2-py3-none-any.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -7244,16 +7240,6 @@ packages:
   timestamp: 1781208358599
 - pypi: ./
   name: pyoncatng
-  requires_dist:
-  - argcomplete
-  - nicegui
-  - oauthlib
-  - pyoncat>=2.6
-  - requests-oauthlib
-  - myst-parser ; extra == 'docs'
-  - sphinx ; extra == 'docs'
-  - sphinx-rtd-theme ; extra == 'docs'
-  - versioningit ; extra == 'docs'
   requires_python: '>=3.10'
 - pypi: https://files.pythonhosted.org/packages/13/bc/8c13eb66537dce1d2bd3a57132902f38d0e7f5bb46fa9f4daed9fe9d76ee/tomlkit-0.15.1-py3-none-any.whl
   name: tomlkit
@@ -7270,13 +7256,6 @@ packages:
   version: 2026.7.19
   sha256: 7322ec6cc9fba9d49ab888bb82d67ac5625627aa168f0165139b17018df3fb8a
   requires_python: '>=3.10'
-- pypi: https://files.pythonhosted.org/packages/1b/06/afddf412c604732b8924b5ab7dc6f34fc1f136fda0bff179d27adb0053a7/pyoncat-2.6-py3-none-any.whl
-  name: pyoncat
-  version: '2.6'
-  sha256: 5e336ca8f1535089a362e2cd445d0531dbf900dd0dbac928209de5bde6cb0064
-  requires_dist:
-  - requests
-  requires_python: '>=3.7,<4'
 - pypi: https://files.pythonhosted.org/packages/87/74/0b692da2520d51fbff19c88b83d97e4c702909dd02386c585998b7e2dbed/regex-2026.7.19-cp314-cp314-macosx_11_0_arm64.whl
   name: regex
   version: 2026.7.19
