@@ -201,19 +201,33 @@ async def test_iptstable_selected_rows_delegates_to_table(user: User, monkeypatc
     assert await widget.selected_rows() == selected
 
 
-async def test_iptstable_on_selection_change_delegates_and_fires(user: User) -> None:
+async def test_iptstable_on_selection_change_delegates_and_fires(user: User, monkeypatch) -> None:
     await user.open("/iptstable")
     widget = _widget(user)
     table = _table(user)
 
+    # Spy on the child's public on_selection_change to capture the forwarded
+    # callback, avoiding NiceGUI's private listener internals.
+    captured: dict[str, object] = {}
+
+    def fake_on_selection_change(callback):
+        captured["callback"] = callback
+        return table  # mirror the real chaining contract
+
+    monkeypatch.setattr(table, "on_selection_change", fake_on_selection_change)
+
     fired: list[object] = []
 
-    # The passthrough returns the widget (chainable) and registers on the child.
-    assert widget.on_selection_change(lambda: fired.append(True)) is widget
-    listener_id = next(lid for lid, lst in table._event_listeners.items() if "selectionChanged" in lst.type)
+    def handler() -> None:
+        fired.append(True)
 
-    # Firing the child's selectionChanged runs the handler wired via the widget.
-    table._handle_event({"listener_id": listener_id, "args": None})
+    # The passthrough returns the widget (chainable) and forwards the exact
+    # handler to the child table.
+    assert widget.on_selection_change(handler) is widget
+    assert captured["callback"] is handler
+
+    # Invoke the forwarded callback to confirm it actually runs.
+    captured["callback"]()
     assert fired == [True]
 
 

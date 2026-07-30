@@ -161,23 +161,28 @@ async def test_runtable_set_rows_preserves_order(user: User) -> None:
     assert [r["run_number"] for r in grid.options["rowData"]] == [9, 7, 8]
 
 
-def _selection_listener_id(grid: RunTable) -> str:
-    """Return the id of the grid's registered selectionChanged listener."""
-    return next(lid for lid, lst in grid._event_listeners.items() if "selectionChanged" in lst.type)
-
-
-async def test_runtable_on_selection_change_fires_handler(user: User) -> None:
+async def test_runtable_on_selection_change_fires_handler(user: User, monkeypatch) -> None:
     await user.open("/runtable")
     grid = next(iter(user.find(RunTable).elements))
 
+    # Spy on the public registration surface (grid.on) rather than NiceGUI's
+    # private listener internals: capture the handler AG Grid would invoke.
+    captured: dict[str, object] = {}
+
+    def fake_on(event, handler):
+        captured[event] = handler
+        return grid  # preserve chaining
+
+    monkeypatch.setattr(grid, "on", fake_on)
+
     fired: list[object] = []
 
-    # Registration returns the grid (chainable) and wires a live handler.
+    # Registration returns the grid (chainable) and wires the selectionChanged event.
     assert grid.on_selection_change(lambda: fired.append(True)) is grid
+    assert "selectionChanged" in captured
 
-    # Simulate the client emitting AG Grid's selectionChanged for our listener;
-    # a sync handler runs inline, so its effect is observable immediately.
-    grid._handle_event({"listener_id": _selection_listener_id(grid), "args": None})
+    # Invoke the registered handler to confirm it actually runs.
+    captured["selectionChanged"]()
     assert fired == [True]
 
 
