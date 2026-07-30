@@ -187,19 +187,34 @@ async def test_iptstable_table_enables_multi_selection(user: User) -> None:
     assert _table(user).options["rowSelection"]["enableClickSelection"] is True
 
 
-async def test_iptstable_on_selection_change_registers_and_chains(user: User) -> None:
+async def test_iptstable_selected_rows_delegates_to_table(user: User, monkeypatch) -> None:
     await user.open("/iptstable")
     widget = _widget(user)
 
-    def handler() -> None:  # pragma: no cover - never invoked in the sim
-        pass
+    selected = [{"ID": 33221, "Title": "Align:0 stop rheometer"}]
 
-    # The passthrough returns the widget (chainable) and registers on the table.
-    assert widget.on_selection_change(handler) is widget
+    async def fake_get_selected_rows():
+        return selected
+
+    # The accessor forwards to (and awaits) the child RunTable's accessor.
+    monkeypatch.setattr(widget._table, "get_selected_rows", fake_get_selected_rows)
+    assert await widget.selected_rows() == selected
+
+
+async def test_iptstable_on_selection_change_delegates_and_fires(user: User) -> None:
+    await user.open("/iptstable")
+    widget = _widget(user)
     table = _table(user)
-    assert any("selectionChanged" in listener.type for listener in table._event_listeners.values())
-    # The selection accessor is exposed on the widget.
-    assert callable(widget.selected_rows)
+
+    fired: list[object] = []
+
+    # The passthrough returns the widget (chainable) and registers on the child.
+    assert widget.on_selection_change(lambda: fired.append(True)) is widget
+    listener_id = next(lid for lid, lst in table._event_listeners.items() if "selectionChanged" in lst.type)
+
+    # Firing the child's selectionChanged runs the handler wired via the widget.
+    table._handle_event({"listener_id": listener_id, "args": None})
+    assert fired == [True]
 
 
 async def test_iptstable_load_is_guarded_while_busy(user: User) -> None:

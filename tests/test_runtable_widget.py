@@ -161,17 +161,40 @@ async def test_runtable_set_rows_preserves_order(user: User) -> None:
     assert [r["run_number"] for r in grid.options["rowData"]] == [9, 7, 8]
 
 
-async def test_runtable_on_selection_change_registers_and_chains(user: User) -> None:
+def _selection_listener_id(grid: RunTable) -> str:
+    """Return the id of the grid's registered selectionChanged listener."""
+    return next(lid for lid, lst in grid._event_listeners.items() if "selectionChanged" in lst.type)
+
+
+async def test_runtable_on_selection_change_fires_handler(user: User) -> None:
     await user.open("/runtable")
     grid = next(iter(user.find(RunTable).elements))
 
-    def handler() -> None:  # pragma: no cover - never invoked in the sim
-        pass
+    fired: list[object] = []
 
-    # Registration returns the grid (chainable) and records a listener for the
-    # AG Grid selectionChanged event.
-    assert grid.on_selection_change(handler) is grid
-    assert any("selectionChanged" in listener.type for listener in grid._event_listeners.values())
+    # Registration returns the grid (chainable) and wires a live handler.
+    assert grid.on_selection_change(lambda: fired.append(True)) is grid
+
+    # Simulate the client emitting AG Grid's selectionChanged for our listener;
+    # a sync handler runs inline, so its effect is observable immediately.
+    grid._handle_event({"listener_id": _selection_listener_id(grid), "args": None})
+    assert fired == [True]
+
+
+async def test_runtable_get_selected_rows_reads_client_data(user: User, monkeypatch) -> None:
+    await user.open("/runtable")
+    grid = next(iter(user.find(RunTable).elements))
+
+    selected = [{"run_number": 7}, {"run_number": 8}]
+
+    async def fake_run_grid_method(name: str):
+        assert name == "getSelectedRows"
+        return selected
+
+    # Stub the AG Grid client round-trip so the real get_selected_rows body runs
+    # headlessly and returns the client's selection.
+    monkeypatch.setattr(grid, "run_grid_method", fake_run_grid_method)
+    assert await grid.get_selected_rows() == selected
 
 
 async def test_runtable_bad_key_column_reports_error(user: User) -> None:
