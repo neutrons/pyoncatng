@@ -1,7 +1,7 @@
 # IPTSTable tutorial
 
 Demonstrates the [`IPTSTable`](../../src/pyoncatng/widgets/iptstable.py) widget:
-an IPTS input and a **Load** button over a read-only
+an IPTS input and a **Load** button over a selectable, otherwise read-only
 [`RunTable`](../../src/pyoncatng/widgets/runtable.py). Enter an IPTS number and
 the widget fetches that experiment's runs from ONCat (for SNS / USANS) and shows
 one **row per run** with columns `ID`, `Title`, `Start Time`, and `Total Counts`.
@@ -36,7 +36,9 @@ Then open the printed URL (default <http://127.0.0.1:8080>).
 2. **Load an experiment** — type an IPTS number (e.g. `24703`) and click
    **Load**. The table fills with that experiment's runs, most recent first.
 3. **A bare number is enough** — `24703` is normalized to `IPTS-24703`.
-4. **Errors show inline** — a non-existent IPTS number, or loading while
+4. **Select runs** — click a row to select it, **Ctrl/Cmd + click** to toggle
+   individual rows, and **Shift + click** to select a contiguous range.
+5. **Errors show inline** — a non-existent IPTS number, or loading while
    disconnected, shows a message below the table instead of runs.
 
 ## Notes

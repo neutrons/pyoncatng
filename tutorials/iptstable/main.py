@@ -42,10 +42,11 @@ def index() -> None:
         IPTSTable(agent=login.agent, facility="SNS", instrument="USANS").classes("w-full").style("height: 600px")
         # A short note on the underlying RunTable's interactions.
         ui.markdown(
-            "**Tip:** drag a column header left or right to reorder the columns "
-            "&mdash; except **ID**, which stays pinned as the first column. "
-            "Header clicks do not sort, cells are read-only, and rows cannot be "
-            "dragged, so the run order is fixed."
+            "**Tip:** click a row to select it (**Ctrl/Cmd + click** to toggle rows, "
+            "**Shift + click** to select a range). Drag a column header left or right "
+            "to reorder the columns &mdash; except **ID**, which stays pinned as the "
+            "first column. Header clicks do not sort, cells are read-only, and rows "
+            "cannot be dragged, so the run order is fixed."
         ).classes("text-caption")
 
 

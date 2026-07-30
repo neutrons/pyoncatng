@@ -27,7 +27,7 @@ python tutorials/login/main.py
 | Tutorial | Description |
 |----------| --- |
 | `login`    | Sign in to ONCat with the `OncatLogin` widget (OAuth device-authorization flow). |
-| `runtable` | Browse run data with the read-only `RunTable` widget (draggable columns, locked `run_number`). |
+| `runtable` | Browse run data with the `RunTable` widget (selectable rows, draggable columns, locked `run_number`). |
 | `iptstable` | Fetch and browse an experiment's runs by IPTS number with the `IPTSTable` widget (requires sign-in). |
 
 As new widgets are added (table, search, …), add a new subfolder here plus a
