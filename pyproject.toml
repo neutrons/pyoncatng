@@ -10,18 +10,6 @@ license = { text = "GPL-3.0" }
 keywords = ["neutrons", "oncat", "nicegui"]
 readme = "README.md"
 
-dependencies = [
-  # Dependencies available from both PyPI and conda should be listed here
-  "pyoncat>=2.6",
-  "nicegui",
-  "argcomplete",
-  "oauthlib",
-  "requests-oauthlib",
-]
-
-[project.optional-dependencies]
-docs = ["sphinx", "sphinx_rtd_theme", "versioningit", "myst_parser"]
-
 [project.urls]
 homepage = "https://github.com/neutrons/pyoncatng/"
 repository = "https://github.com/neutrons/pyoncatng/"
