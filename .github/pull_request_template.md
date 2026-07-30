@@ -3,11 +3,11 @@
 
 Check all that apply:
 
-- [ ] Updated documentation
 - [ ] Source added/refactored
-- [ ] Added unit tests
-- [ ] Added widget/UI tests
-- [ ] Updated packaging, dependency, or Pixi configuration
+- [ ] Unit tests added/updated
+- [ ] Widget/UI tests added/updated
+- [ ] Documentation updated
+- [ ] Packaging, dependency, or Pixi configuration updated
 
 **References:**
 
