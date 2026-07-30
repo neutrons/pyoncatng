@@ -182,8 +182,9 @@ async def test_iptstable_load_button_triggers_fetch(user: User) -> None:
 
 async def test_iptstable_table_enables_multi_selection(user: User) -> None:
     await user.open("/iptstable")
-    # The child RunTable is wired for multi-row selection.
-    assert _table(user).options["rowSelection"] == "multiple"
+    # The child RunTable is wired for row-click multi-selection (object API).
+    assert _table(user).options["rowSelection"]["mode"] == "multiRow"
+    assert _table(user).options["rowSelection"]["enableClickSelection"] is True
 
 
 async def test_iptstable_on_selection_change_registers_and_chains(user: User) -> None:

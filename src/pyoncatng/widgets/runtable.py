@@ -129,10 +129,19 @@ class RunTable(ui.aggrid):
             # No column opts into rowDrag, but forbid row dragging explicitly so
             # the row order stays fixed even if a column later enables it.
             "suppressRowDrag": True,
-            # Enable multi-row selection. AG Grid handles the modifiers itself:
-            # plain click selects one row, Ctrl/Cmd+click toggles a row, and
-            # Shift+click selects the contiguous range from the anchor row.
-            "rowSelection": "multiple",
+            # Enable multi-row selection via AG Grid's current object API (the
+            # legacy "multiple" string is deprecated as of AG Grid 32.2). AG Grid
+            # handles the modifiers itself: plain click selects one row,
+            # Ctrl/Cmd+click toggles a row, and Shift+click selects the
+            # contiguous range from the anchor row. Click selection defaults off
+            # in the new API, so enable it explicitly; checkboxes default on, so
+            # turn them (and the header "select all") off for row-click-only UX.
+            "rowSelection": {
+                "mode": "multiRow",
+                "enableClickSelection": True,
+                "checkboxes": False,
+                "headerCheckbox": False,
+            },
         }
 
     # -- data updates -------------------------------------------------------

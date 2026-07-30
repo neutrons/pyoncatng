@@ -76,14 +76,21 @@ def test_options_no_row_dragging() -> None:
 
 
 def test_options_multiple_row_selection() -> None:
+    # Current AG Grid object API (not the deprecated "multiple" string): row
+    # multi-select, click enabled, no checkbox column or header select-all.
     opts = RunTable.build_options(["run_number"], rows=None)
-    assert opts["rowSelection"] == "multiple"
+    assert opts["rowSelection"] == {
+        "mode": "multiRow",
+        "enableClickSelection": True,
+        "checkboxes": False,
+        "headerCheckbox": False,
+    }
 
 
 def test_options_selection_does_not_relax_lockdowns() -> None:
     # Enabling selection must leave read-only / no-sort / no-drag intact.
     opts = RunTable.build_options(["run_number"], rows=None)
-    assert opts["rowSelection"] == "multiple"
+    assert opts["rowSelection"]["mode"] == "multiRow"
     assert opts["defaultColDef"]["editable"] is False
     assert opts["defaultColDef"]["sortable"] is False
     assert opts["suppressRowDrag"] is True
@@ -127,7 +134,9 @@ async def test_runtable_element_options_wired(user: User) -> None:
     assert opts["defaultColDef"]["editable"] is False
     assert opts["defaultColDef"]["sortable"] is False
     assert opts["suppressRowDrag"] is True
-    assert opts["rowSelection"] == "multiple"
+    assert opts["rowSelection"]["mode"] == "multiRow"
+    assert opts["rowSelection"]["enableClickSelection"] is True
+    assert opts["rowSelection"]["checkboxes"] is False
     assert opts["columnDefs"][0]["field"] == "run_number"
     assert opts["columnDefs"][0]["lockPosition"] == "left"
     assert len(opts["rowData"]) == 3
