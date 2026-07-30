@@ -180,6 +180,27 @@ async def test_iptstable_load_button_triggers_fetch(user: User) -> None:
     assert widget._agent.run_calls == 1
 
 
+async def test_iptstable_table_enables_multi_selection(user: User) -> None:
+    await user.open("/iptstable")
+    # The child RunTable is wired for multi-row selection.
+    assert _table(user).options["rowSelection"] == "multiple"
+
+
+async def test_iptstable_on_selection_change_registers_and_chains(user: User) -> None:
+    await user.open("/iptstable")
+    widget = _widget(user)
+
+    def handler() -> None:  # pragma: no cover - never invoked in the sim
+        pass
+
+    # The passthrough returns the widget (chainable) and registers on the table.
+    assert widget.on_selection_change(handler) is widget
+    table = _table(user)
+    assert any("selectionChanged" in listener.type for listener in table._event_listeners.values())
+    # The selection accessor is exposed on the widget.
+    assert callable(widget.selected_rows)
+
+
 async def test_iptstable_load_is_guarded_while_busy(user: User) -> None:
     await user.open("/iptstable")
     widget = _widget(user)

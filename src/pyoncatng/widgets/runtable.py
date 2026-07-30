@@ -2,7 +2,8 @@
 
 Displays one **row per run** and one **column per processing variable** (PV),
 backed by AG Grid (:class:`nicegui.ui.aggrid`). The grid is deliberately locked
-down for read-only browsing of a fixed run ordering:
+down to read-only browsing of a fixed run ordering, while still letting the user
+*select* rows:
 
 * **Read-only cells** -- no inline editing, so the user cannot change a value.
 * **No row sorting** -- header clicks do not reorder the rows, so the rows stay
@@ -11,6 +12,11 @@ down for read-only browsing of a fixed run ordering:
 * **Draggable columns** -- columns can be reordered by dragging their headers
   left/right, *except* the key column (``run_number`` by default), which is
   locked to the leftmost position so no column can be dragged ahead of it.
+* **Multi-row selection** -- clicking a row highlights it (clearing any prior
+  selection); ``Ctrl``/``Cmd`` + click toggles individual rows; ``Shift`` +
+  click selects the contiguous range from the anchor row. Read the current
+  selection with the inherited :meth:`~nicegui.ui.aggrid.get_selected_rows`, or
+  react to changes via :meth:`RunTable.on_selection_change`.
 
 Fetching the data from ONCat is intentionally out of scope: a caller builds the
 ordered list of PV column names and the ``rows`` (a list of per-run dicts keyed
@@ -18,7 +24,7 @@ by PV name) and hands them to the constructor. Column name, header label, and
 row-dict key are all the same PV string (``name == label == field``).
 """
 
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from nicegui import ui
 
@@ -38,7 +44,7 @@ Row = Dict[str, Any]
 
 
 class RunTable(ui.aggrid):
-    """Read-only AG Grid of runs (rows) by processing variables (columns).
+    """Selectable, otherwise read-only AG Grid of runs (rows) by PVs (columns).
 
     Params
     ------
@@ -123,6 +129,10 @@ class RunTable(ui.aggrid):
             # No column opts into rowDrag, but forbid row dragging explicitly so
             # the row order stays fixed even if a column later enables it.
             "suppressRowDrag": True,
+            # Enable multi-row selection. AG Grid handles the modifiers itself:
+            # plain click selects one row, Ctrl/Cmd+click toggles a row, and
+            # Shift+click selects the contiguous range from the anchor row.
+            "rowSelection": "multiple",
         }
 
     # -- data updates -------------------------------------------------------
@@ -131,3 +141,15 @@ class RunTable(ui.aggrid):
         """Replace the displayed rows (order preserved) and refresh the grid."""
         self.options["rowData"] = [dict(row) for row in rows]
         self.update()
+
+    # -- selection ----------------------------------------------------------
+
+    def on_selection_change(self, callback: Callable[..., Any]) -> "RunTable":
+        """Register ``callback`` to run whenever the row selection changes.
+
+        Read the selected rows from within (or after) the callback with the
+        inherited async :meth:`~nicegui.ui.aggrid.get_selected_rows`. Returns
+        ``self`` for chaining.
+        """
+        self.on("selectionChanged", callback)
+        return self

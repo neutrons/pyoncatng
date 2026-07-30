@@ -75,6 +75,20 @@ def test_options_no_row_dragging() -> None:
     assert opts["suppressRowDrag"] is True
 
 
+def test_options_multiple_row_selection() -> None:
+    opts = RunTable.build_options(["run_number"], rows=None)
+    assert opts["rowSelection"] == "multiple"
+
+
+def test_options_selection_does_not_relax_lockdowns() -> None:
+    # Enabling selection must leave read-only / no-sort / no-drag intact.
+    opts = RunTable.build_options(["run_number"], rows=None)
+    assert opts["rowSelection"] == "multiple"
+    assert opts["defaultColDef"]["editable"] is False
+    assert opts["defaultColDef"]["sortable"] is False
+    assert opts["suppressRowDrag"] is True
+
+
 def test_options_row_order_preserved() -> None:
     rows = [{"run_number": 3}, {"run_number": 1}, {"run_number": 2}]
     opts = RunTable.build_options(["run_number"], rows=rows)
@@ -113,6 +127,7 @@ async def test_runtable_element_options_wired(user: User) -> None:
     assert opts["defaultColDef"]["editable"] is False
     assert opts["defaultColDef"]["sortable"] is False
     assert opts["suppressRowDrag"] is True
+    assert opts["rowSelection"] == "multiple"
     assert opts["columnDefs"][0]["field"] == "run_number"
     assert opts["columnDefs"][0]["lockPosition"] == "left"
     assert len(opts["rowData"]) == 3
@@ -135,6 +150,19 @@ async def test_runtable_set_rows_preserves_order(user: User) -> None:
     grid = next(iter(user.find(RunTable).elements))
     grid.set_rows([{"run_number": 9}, {"run_number": 7}, {"run_number": 8}])
     assert [r["run_number"] for r in grid.options["rowData"]] == [9, 7, 8]
+
+
+async def test_runtable_on_selection_change_registers_and_chains(user: User) -> None:
+    await user.open("/runtable")
+    grid = next(iter(user.find(RunTable).elements))
+
+    def handler() -> None:  # pragma: no cover - never invoked in the sim
+        pass
+
+    # Registration returns the grid (chainable) and records a listener for the
+    # AG Grid selectionChanged event.
+    assert grid.on_selection_change(handler) is grid
+    assert any("selectionChanged" in listener.type for listener in grid._event_listeners.values())
 
 
 async def test_runtable_bad_key_column_reports_error(user: User) -> None:
