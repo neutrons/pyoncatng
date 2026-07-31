@@ -169,6 +169,15 @@ async def test_iptstable_rejects_duplicate_processing_variable_labels(user: User
     await user.should_see("error: processing_variables labels must be unique")
 
 
+async def test_iptstable_rejects_invalid_processing_variables(user: User) -> None:
+    await user.open("/iptstable-invalid-processing-variables")
+
+    await user.should_see("shape: processing_variables[0] must be a (label, path) pair of non-empty strings")
+    await user.should_see("type: processing_variables[0] must be a (label, path) pair of non-empty strings")
+    await user.should_see("empty-label: processing_variables[0] must be a (label, path) pair of non-empty strings")
+    await user.should_see("empty-path: processing_variables[0] must be a (label, path) pair of non-empty strings")
+
+
 async def test_iptstable_empty_result_shows_message(user: User) -> None:
     await user.open("/iptstable")
     widget = _widget(user)

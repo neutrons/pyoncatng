@@ -143,5 +143,20 @@ def iptstable_duplicate_label_page() -> None:
         ui.label(f"error: {error}")
 
 
+@ui.page("/iptstable-invalid-processing-variables")
+def iptstable_invalid_processing_variables_page() -> None:
+    cases = [
+        ("shape", [("Title",)]),
+        ("type", [("Title", None)]),
+        ("empty-label", [(" ", "datafiles.raw.metadata.entry.title")]),
+        ("empty-path", [("Title", "\t")]),
+    ]
+    for name, processing_variables in cases:
+        try:
+            IPTSTable(agent=FakeAgent(), processing_variables=processing_variables)
+        except ValueError as error:
+            ui.label(f"{name}: {error}")
+
+
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret="test secret")

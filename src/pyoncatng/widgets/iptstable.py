@@ -49,6 +49,30 @@ KEY_COLUMN = "ID"
 Row = Dict[str, Any]
 
 
+def _validate_processing_variables(
+    processing_variables: Sequence[ProcessingVariable],
+) -> List[ProcessingVariable]:
+    """Copy and validate constructor processing-variable pairs."""
+    try:
+        values = list(processing_variables)
+    except TypeError as error:
+        raise ValueError("processing_variables must be an iterable of (label, path) pairs.") from error
+
+    validated: List[ProcessingVariable] = []
+    for index, value in enumerate(values):
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            raise ValueError(
+                f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
+            )
+        label, path = value
+        if not isinstance(label, str) or not isinstance(path, str) or not label.strip() or not path.strip():
+            raise ValueError(
+                f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
+            )
+        validated.append((label, path))
+    return validated
+
+
 class IPTSTable(ui.card):
     """IPTS input + Load button over a read-only :class:`RunTable`.
 
@@ -65,7 +89,8 @@ class IPTSTable(ui.card):
     processing_variables : sequence of (str, str), optional
         Ordered ``(display label, ONCat metadata path)`` pairs to show and
         query. ``ID`` is always added as the first column and must not be
-        included here. Defaults to Title, Start Time, and Total Counts.
+        included here. Each pair must contain non-empty strings, and labels
+        must be unique. Defaults to Title, Start Time, and Total Counts.
 
     Example
     -------
@@ -90,16 +115,18 @@ class IPTSTable(ui.card):
         instrument: str = "USANS",
         processing_variables: Sequence[ProcessingVariable] = DEFAULT_PROCESSING_VARIABLES,
     ) -> None:
-        super().__init__()
-        self._agent = agent
-        self._facility = facility
-        self._instrument = instrument
-        self._processing_variables = list(processing_variables)
-        labels = [label for label, _ in self._processing_variables]
+        processing_variables = _validate_processing_variables(processing_variables)
+        labels = [label for label, _ in processing_variables]
         if KEY_COLUMN in labels:
             raise ValueError(f"{KEY_COLUMN!r} is reserved")
         if len(labels) != len(set(labels)):
             raise ValueError("processing_variables labels must be unique")
+
+        super().__init__()
+        self._agent = agent
+        self._facility = facility
+        self._instrument = instrument
+        self._processing_variables = processing_variables
         self._column_spec: List[Tuple[str, Optional[str]]] = [
             (KEY_COLUMN, None),
             *self._processing_variables,
