@@ -75,6 +75,16 @@ experiment's runs (here IPTS-24703 on SNS / USANS), one row per run.
 fetches that experiment's runs from ONCat for a fixed facility/instrument
 (`"SNS"`/`"USANS"` by default) and renders one row per run with the columns
 `ID`, `Title`, `Start Time`, and `Total Counts` (most recent run first).
+The `ID` column is always first. Pass ordered `(display label, ONCat metadata
+path)` pairs through `processing_variables` to choose the remaining columns;
+for example:
+
+```python
+IPTSTable(
+    agent=login.agent,
+    processing_variables=[("Title", "datafiles.raw.metadata.entry.title")],
+)
+```
 
 The authenticated agent is supplied by the caller — typically
 `OncatLogin.agent` — so the widget does not create or manage the connection. The

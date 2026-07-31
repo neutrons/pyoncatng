@@ -105,5 +105,59 @@ def iptstable_page() -> None:
     IPTSTable(agent=FakeAgent(), facility="SNS", instrument="USANS")
 
 
+@ui.page("/iptstable-custom")
+def iptstable_custom_page() -> None:
+    IPTSTable(
+        agent=FakeAgent(),
+        facility="SNS",
+        instrument="USANS",
+        processing_variables=[
+            (" Title ", " datafiles.raw.metadata.entry.title "),
+            (" Total Counts ", " datafiles.raw.metadata.entry.total_counts "),
+        ],
+    )
+
+
+@ui.page("/iptstable-reserved-label")
+def iptstable_reserved_label_page() -> None:
+    try:
+        IPTSTable(
+            agent=FakeAgent(),
+            processing_variables=[(" ID ", "datafiles.raw.metadata.entry.title")],
+        )
+    except ValueError as error:
+        ui.label(f"error: {error}")
+
+
+@ui.page("/iptstable-duplicate-label")
+def iptstable_duplicate_label_page() -> None:
+    try:
+        IPTSTable(
+            agent=FakeAgent(),
+            processing_variables=[
+                ("Title", "datafiles.raw.metadata.entry.title"),
+                ("Title", "datafiles.raw.metadata.entry.start_time"),
+            ],
+        )
+    except ValueError as error:
+        ui.label(f"error: {error}")
+
+
+@ui.page("/iptstable-invalid-processing-variables")
+def iptstable_invalid_processing_variables_page() -> None:
+    cases = [
+        ("shape", [("Title",)]),
+        ("type", [("Title", None)]),
+        ("empty-label", [(" ", "datafiles.raw.metadata.entry.title")]),
+        ("empty-path", [("Title", "\t")]),
+        ("non-iterable", 42),
+    ]
+    for name, processing_variables in cases:
+        try:
+            IPTSTable(agent=FakeAgent(), processing_variables=processing_variables)
+        except ValueError as error:
+            ui.label(f"{name}: {error}")
+
+
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret="test secret")
