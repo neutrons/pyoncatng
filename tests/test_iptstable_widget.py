@@ -180,6 +180,57 @@ async def test_iptstable_load_button_triggers_fetch(user: User) -> None:
     assert widget._agent.run_calls == 1
 
 
+async def test_iptstable_table_enables_multi_selection(user: User) -> None:
+    await user.open("/iptstable")
+    # The child RunTable is wired for row-click multi-selection (object API).
+    assert _table(user).options["rowSelection"]["mode"] == "multiRow"
+    assert _table(user).options["rowSelection"]["enableClickSelection"] is True
+
+
+async def test_iptstable_selected_rows_delegates_to_table(user: User, monkeypatch) -> None:
+    await user.open("/iptstable")
+    widget = _widget(user)
+
+    selected = [{"ID": 33221, "Title": "Align:0 stop rheometer"}]
+
+    async def fake_get_selected_rows():
+        return selected
+
+    # The accessor forwards to (and awaits) the child RunTable's accessor.
+    monkeypatch.setattr(widget._table, "get_selected_rows", fake_get_selected_rows)
+    assert await widget.selected_rows() == selected
+
+
+async def test_iptstable_on_selection_change_delegates_and_fires(user: User, monkeypatch) -> None:
+    await user.open("/iptstable")
+    widget = _widget(user)
+    table = _table(user)
+
+    # Spy on the child's public on_selection_change to capture the forwarded
+    # callback, avoiding NiceGUI's private listener internals.
+    captured: dict[str, object] = {}
+
+    def fake_on_selection_change(callback):
+        captured["callback"] = callback
+        return table  # mirror the real chaining contract
+
+    monkeypatch.setattr(table, "on_selection_change", fake_on_selection_change)
+
+    fired: list[object] = []
+
+    def handler() -> None:
+        fired.append(True)
+
+    # The passthrough returns the widget (chainable) and forwards the exact
+    # handler to the child table.
+    assert widget.on_selection_change(handler) is widget
+    assert captured["callback"] is handler
+
+    # Invoke the forwarded callback to confirm it actually runs.
+    captured["callback"]()
+    assert fired == [True]
+
+
 async def test_iptstable_load_is_guarded_while_busy(user: User) -> None:
     await user.open("/iptstable")
     widget = _widget(user)

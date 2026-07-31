@@ -75,6 +75,27 @@ def test_options_no_row_dragging() -> None:
     assert opts["suppressRowDrag"] is True
 
 
+def test_options_multiple_row_selection() -> None:
+    # Current AG Grid object API (not the deprecated "multiple" string): row
+    # multi-select, click enabled, no checkbox column or header select-all.
+    opts = RunTable.build_options(["run_number"], rows=None)
+    assert opts["rowSelection"] == {
+        "mode": "multiRow",
+        "enableClickSelection": True,
+        "checkboxes": False,
+        "headerCheckbox": False,
+    }
+
+
+def test_options_selection_does_not_relax_lockdowns() -> None:
+    # Enabling selection must leave read-only / no-sort / no-drag intact.
+    opts = RunTable.build_options(["run_number"], rows=None)
+    assert opts["rowSelection"]["mode"] == "multiRow"
+    assert opts["defaultColDef"]["editable"] is False
+    assert opts["defaultColDef"]["sortable"] is False
+    assert opts["suppressRowDrag"] is True
+
+
 def test_options_row_order_preserved() -> None:
     rows = [{"run_number": 3}, {"run_number": 1}, {"run_number": 2}]
     opts = RunTable.build_options(["run_number"], rows=rows)
@@ -113,6 +134,9 @@ async def test_runtable_element_options_wired(user: User) -> None:
     assert opts["defaultColDef"]["editable"] is False
     assert opts["defaultColDef"]["sortable"] is False
     assert opts["suppressRowDrag"] is True
+    assert opts["rowSelection"]["mode"] == "multiRow"
+    assert opts["rowSelection"]["enableClickSelection"] is True
+    assert opts["rowSelection"]["checkboxes"] is False
     assert opts["columnDefs"][0]["field"] == "run_number"
     assert opts["columnDefs"][0]["lockPosition"] == "left"
     assert len(opts["rowData"]) == 3
@@ -135,6 +159,47 @@ async def test_runtable_set_rows_preserves_order(user: User) -> None:
     grid = next(iter(user.find(RunTable).elements))
     grid.set_rows([{"run_number": 9}, {"run_number": 7}, {"run_number": 8}])
     assert [r["run_number"] for r in grid.options["rowData"]] == [9, 7, 8]
+
+
+async def test_runtable_on_selection_change_fires_handler(user: User, monkeypatch) -> None:
+    await user.open("/runtable")
+    grid = next(iter(user.find(RunTable).elements))
+
+    # Spy on the public registration surface (grid.on) rather than NiceGUI's
+    # private listener internals: capture the handler AG Grid would invoke.
+    captured: dict[str, object] = {}
+
+    def fake_on(event, handler):
+        captured[event] = handler
+        return grid  # preserve chaining
+
+    monkeypatch.setattr(grid, "on", fake_on)
+
+    fired: list[object] = []
+
+    # Registration returns the grid (chainable) and wires the selectionChanged event.
+    assert grid.on_selection_change(lambda: fired.append(True)) is grid
+    assert "selectionChanged" in captured
+
+    # Invoke the registered handler to confirm it actually runs.
+    captured["selectionChanged"]()
+    assert fired == [True]
+
+
+async def test_runtable_get_selected_rows_reads_client_data(user: User, monkeypatch) -> None:
+    await user.open("/runtable")
+    grid = next(iter(user.find(RunTable).elements))
+
+    selected = [{"run_number": 7}, {"run_number": 8}]
+
+    async def fake_run_grid_method(name: str):
+        assert name == "getSelectedRows"
+        return selected
+
+    # Stub the AG Grid client round-trip so the real get_selected_rows body runs
+    # headlessly and returns the client's selection.
+    monkeypatch.setattr(grid, "run_grid_method", fake_run_grid_method)
+    assert await grid.get_selected_rows() == selected
 
 
 async def test_runtable_bad_key_column_reports_error(user: User) -> None:

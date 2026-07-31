@@ -15,7 +15,7 @@ Blocking ONCat I/O is run off the event loop with ``asyncio.to_thread``, as in
 """
 
 import asyncio
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 import pyoncat
 from nicegui import ui
@@ -179,3 +179,18 @@ class IPTSTable(ui.card):
         finally:
             self._busy = False
             self._load_button.set_enabled(True)
+
+    # -- selection ----------------------------------------------------------
+
+    async def selected_rows(self) -> List[Row]:
+        """Return the rows the user has selected in the table (may be empty)."""
+        return await self._table.get_selected_rows()
+
+    def on_selection_change(self, callback: Callable[..., Any]) -> "IPTSTable":
+        """Register ``callback`` to run when the table selection changes.
+
+        Read the selection with :meth:`selected_rows`. Returns ``self`` for
+        chaining.
+        """
+        self._table.on_selection_change(callback)
+        return self

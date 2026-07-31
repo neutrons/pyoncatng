@@ -28,15 +28,31 @@ and the sign-in dialog provides the browser approval link and device code.
 
 The run table renders one row per run and one column per processing variable
 (here `run_number`, `run_title`, `start_time`, `duration`, `counts`, and
-`LambdaRequest`). Cells are read-only, header clicks do not sort the rows (so the
-supplied run order is preserved), and rows cannot be dragged. Columns can be
-reordered by dragging their headers, except the key column (`run_number` by
-default), which is locked to the leftmost position.
+`LambdaRequest`). Rows are selectable — click to select one, `Ctrl`/`Cmd` +
+click to toggle individual rows, and `Shift` + click to select a contiguous
+range. Otherwise the grid is locked down: cells are read-only, header clicks do
+not sort the rows (so the supplied run order is preserved), and rows cannot be
+dragged. Columns can be reordered by dragging their headers, except the key
+column (`run_number` by default), which is locked to the leftmost position.
 ```
 
 Fetching the data from ONCat is out of scope for the widget: a caller builds the
 ordered list of column names and the rows (a list of per-run dicts keyed by
 processing-variable name) and passes them to the constructor.
+
+React to the selection by registering a callback with `on_selection_change` and
+reading the selected rows with the inherited async `get_selected_rows` (see the
+[RunTable tutorial](tutorials.md) for a runnable version):
+
+```python
+table = RunTable(columns=columns, rows=rows)
+
+async def on_change() -> None:
+    selected = await table.get_selected_rows()
+    print("selected run numbers:", [row["run_number"] for row in selected])
+
+table.on_selection_change(on_change)
+```
 
 ```{eval-rst}
 .. autoclass:: pyoncatng.widgets.runtable.RunTable
@@ -65,6 +81,10 @@ The authenticated agent is supplied by the caller — typically
 agent may be disconnected when passed; problems (no live session, a non-existent
 IPTS number, or a request failure) are reported in an inline message area below
 the table. Blocking ONCat I/O runs off the event loop.
+
+Rows are selectable just as in [`RunTable`](#run-table); `IPTSTable` exposes the
+selection through its own `selected_rows()` (async) and `on_selection_change()`
+methods, which delegate to the underlying table.
 
 ```{eval-rst}
 .. autoclass:: pyoncatng.widgets.iptstable.IPTSTable

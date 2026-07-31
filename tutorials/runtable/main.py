@@ -4,12 +4,18 @@ Run it with ``pixi run tutorial-runtable`` or ``python tutorials/runtable/main.p
 No ONCat sign-in is needed -- the page generates sample run data locally so you
 can try the widget's interactions:
 
+* **Select rows** -- click a row to select it, **Ctrl/Cmd + click** to toggle
+  individual rows, and **Shift + click** to select a contiguous range. The
+  caption under the table lists the selected run numbers live.
 * **Drag a column header** left/right to reorder columns...
 * ...except **run_number**, which is locked to the leftmost position.
 * **Clicking a header does nothing** -- rows are never sorted, so the run order
   is fixed.
 * **Cells are read-only** -- double-clicking a cell will not edit it.
 * **Rows cannot be dragged.**
+
+The selection is read out via ``RunTable.on_selection_change`` (register a
+callback) and the inherited async ``get_selected_rows``.
 """
 
 import argparse
@@ -64,11 +70,25 @@ def index() -> None:
     with ui.column().classes("q-pa-md").style("width: 100%; max-width: 1000px"):
         ui.label("pyoncatng RunTable demo").classes("text-h5")
         ui.markdown(
-            "Drag column headers to reorder them &mdash; but **run_number** stays "
-            "leftmost. Header clicks never sort, cells are read-only, and rows "
-            "cannot be dragged, so the run order is fixed."
+            "**Click** a row to select it, **Ctrl/Cmd + click** to toggle rows, and "
+            "**Shift + click** to select a range. Drag column headers to reorder them "
+            "&mdash; but **run_number** stays leftmost. Header clicks never sort, cells "
+            "are read-only, and rows cannot be dragged, so the run order is fixed."
         )
-        RunTable(columns=COLUMNS, rows=_sample_rows()).style("height: 460px")
+        table = RunTable(columns=COLUMNS, rows=_sample_rows()).style("height: 460px")
+
+        # Read the live selection out through the widget's public API: register a
+        # callback with on_selection_change, then pull the rows with the inherited
+        # async get_selected_rows.
+        selection_label = ui.label("No rows selected.").classes("text-caption")
+
+        async def _show_selection() -> None:
+            rows = await table.get_selected_rows()
+            selection_label.set_text(
+                "Selected run(s): " + ", ".join(str(row["run_number"]) for row in rows) if rows else "No rows selected."
+            )
+
+        table.on_selection_change(_show_selection)
 
 
 def _build_parser() -> argparse.ArgumentParser:
