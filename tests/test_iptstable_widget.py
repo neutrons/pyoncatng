@@ -157,6 +157,18 @@ async def test_iptstable_custom_processing_variables(user: User) -> None:
     ]
 
 
+async def test_iptstable_rejects_reserved_processing_variable_label(user: User) -> None:
+    await user.open("/iptstable-reserved-label")
+
+    await user.should_see("error: 'ID' is reserved")
+
+
+async def test_iptstable_rejects_duplicate_processing_variable_labels(user: User) -> None:
+    await user.open("/iptstable-duplicate-label")
+
+    await user.should_see("error: processing_variables labels must be unique")
+
+
 async def test_iptstable_empty_result_shows_message(user: User) -> None:
     await user.open("/iptstable")
     widget = _widget(user)

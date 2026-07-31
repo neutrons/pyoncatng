@@ -118,5 +118,30 @@ def iptstable_custom_page() -> None:
     )
 
 
+@ui.page("/iptstable-reserved-label")
+def iptstable_reserved_label_page() -> None:
+    try:
+        IPTSTable(
+            agent=FakeAgent(),
+            processing_variables=[("ID", "datafiles.raw.metadata.entry.title")],
+        )
+    except ValueError as error:
+        ui.label(f"error: {error}")
+
+
+@ui.page("/iptstable-duplicate-label")
+def iptstable_duplicate_label_page() -> None:
+    try:
+        IPTSTable(
+            agent=FakeAgent(),
+            processing_variables=[
+                ("Title", "datafiles.raw.metadata.entry.title"),
+                ("Title", "datafiles.raw.metadata.entry.start_time"),
+            ],
+        )
+    except ValueError as error:
+        ui.label(f"error: {error}")
+
+
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret="test secret")

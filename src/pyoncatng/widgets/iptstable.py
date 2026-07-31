@@ -95,6 +95,11 @@ class IPTSTable(ui.card):
         self._facility = facility
         self._instrument = instrument
         self._processing_variables = list(processing_variables)
+        labels = [label for label, _ in self._processing_variables]
+        if KEY_COLUMN in labels:
+            raise ValueError(f"{KEY_COLUMN!r} is reserved")
+        if len(labels) != len(set(labels)):
+            raise ValueError("processing_variables labels must be unique")
         self._column_spec: List[Tuple[str, Optional[str]]] = [
             (KEY_COLUMN, None),
             *self._processing_variables,
