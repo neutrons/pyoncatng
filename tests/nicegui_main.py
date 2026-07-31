@@ -105,5 +105,18 @@ def iptstable_page() -> None:
     IPTSTable(agent=FakeAgent(), facility="SNS", instrument="USANS")
 
 
+@ui.page("/iptstable-custom")
+def iptstable_custom_page() -> None:
+    IPTSTable(
+        agent=FakeAgent(),
+        facility="SNS",
+        instrument="USANS",
+        processing_variables=[
+            ("Title", "datafiles.raw.metadata.entry.title"),
+            ("Total Counts", "datafiles.raw.metadata.entry.total_counts"),
+        ],
+    )
+
+
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret="test secret")

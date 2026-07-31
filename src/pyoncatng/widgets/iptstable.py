@@ -28,11 +28,19 @@ from .runtable import RunTable
 # datafile metadata a run aggregates, under ``datafiles.raw.metadata.entry.*``
 # (verified against SNS/USANS runs; a run's own ``metadata`` is not populated).
 ColumnSpec = Sequence[Tuple[str, Optional[str]]]
-COLUMN_SPEC: List[Tuple[str, Optional[str]]] = [
-    ("ID", None),
+ProcessingVariable = Tuple[str, str]
+
+# ``ID`` is always added by ``IPTSTable`` as the leftmost column. Callers can
+# replace these path-backed processing variables through the constructor.
+DEFAULT_PROCESSING_VARIABLES: Tuple[ProcessingVariable, ...] = (
     ("Title", "datafiles.raw.metadata.entry.title"),
     ("Start Time", "datafiles.raw.metadata.entry.start_time"),
     ("Total Counts", "datafiles.raw.metadata.entry.total_counts"),
+)
+
+COLUMN_SPEC: List[Tuple[str, Optional[str]]] = [
+    ("ID", None),
+    *DEFAULT_PROCESSING_VARIABLES,
 ]
 
 # The column pinned leftmost in the RunTable (the run number).
@@ -54,6 +62,24 @@ class IPTSTable(ui.card):
         Facility passed to ``Run.list``. Defaults to ``"SNS"``.
     instrument : str, optional
         Instrument passed to ``Run.list``. Defaults to ``"USANS"``.
+    processing_variables : sequence of (str, str), optional
+        Ordered ``(display label, ONCat metadata path)`` pairs to show and
+        query. ``ID`` is always added as the first column and must not be
+        included here. Defaults to Title, Start Time, and Total Counts.
+
+    Example
+    -------
+    To show only ``Title`` and ``Start Time``:
+
+    .. code-block:: python
+
+        IPTSTable(
+            agent=login.agent,
+            processing_variables=[
+                ("Title", "datafiles.raw.metadata.entry.title"),
+                ("Start Time", "datafiles.raw.metadata.entry.start_time"),
+            ],
+        )
     """
 
     def __init__(
@@ -62,11 +88,17 @@ class IPTSTable(ui.card):
         *,
         facility: str = "SNS",
         instrument: str = "USANS",
+        processing_variables: Sequence[ProcessingVariable] = DEFAULT_PROCESSING_VARIABLES,
     ) -> None:
         super().__init__()
         self._agent = agent
         self._facility = facility
         self._instrument = instrument
+        self._processing_variables = list(processing_variables)
+        self._column_spec: List[Tuple[str, Optional[str]]] = [
+            (KEY_COLUMN, None),
+            *self._processing_variables,
+        ]
         self._busy = False
         self._build_ui()
 
@@ -129,7 +161,7 @@ class IPTSTable(ui.card):
                 self._load_button = ui.button("Load", on_click=self._on_load)
             self._table = (
                 RunTable(
-                    columns=self.column_names(),
+                    columns=self.column_names(self._column_spec),
                     rows=[],
                     key_column=KEY_COLUMN,
                 )
@@ -167,9 +199,9 @@ class IPTSTable(ui.card):
                 facility=self._facility,
                 instrument=self._instrument,
                 experiment=experiment,
-                projection=self.build_projection(),
+                projection=self.build_projection(self._column_spec),
             )
-            rows = self.rows_from_runs(runs)
+            rows = self.rows_from_runs(runs, self._column_spec)
             self._table.set_rows(rows)
             if not rows:
                 self._set_message(f"No runs found for {experiment}.")

@@ -133,6 +133,30 @@ async def test_iptstable_load_populates_table(user: User) -> None:
     ]
 
 
+async def test_iptstable_custom_processing_variables(user: User) -> None:
+    await user.open("/iptstable-custom")
+    widget = _widget(user)
+    widget._agent.run_result = [SAMPLE_RUN]
+    widget._input.value = "24703"
+
+    column_defs = _table(user).options["columnDefs"]
+    assert [column["field"] for column in column_defs] == ["ID", "Title", "Total Counts"]
+
+    await widget._on_load()
+
+    assert widget._agent.run_kwargs["projection"] == [
+        "datafiles.raw.metadata.entry.title",
+        "datafiles.raw.metadata.entry.total_counts",
+    ]
+    assert _table(user).options["rowData"] == [
+        {
+            "ID": 33221,
+            "Title": "Align:0 stop rheometer",
+            "Total Counts": 258881,
+        }
+    ]
+
+
 async def test_iptstable_empty_result_shows_message(user: User) -> None:
     await user.open("/iptstable")
     widget = _widget(user)
