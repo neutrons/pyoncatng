@@ -112,8 +112,8 @@ def iptstable_custom_page() -> None:
         facility="SNS",
         instrument="USANS",
         processing_variables=[
-            ("Title", "datafiles.raw.metadata.entry.title"),
-            ("Total Counts", "datafiles.raw.metadata.entry.total_counts"),
+            (" Title ", " datafiles.raw.metadata.entry.title "),
+            (" Total Counts ", " datafiles.raw.metadata.entry.total_counts "),
         ],
     )
 
@@ -123,7 +123,7 @@ def iptstable_reserved_label_page() -> None:
     try:
         IPTSTable(
             agent=FakeAgent(),
-            processing_variables=[("ID", "datafiles.raw.metadata.entry.title")],
+            processing_variables=[(" ID ", "datafiles.raw.metadata.entry.title")],
         )
     except ValueError as error:
         ui.label(f"error: {error}")
@@ -150,6 +150,7 @@ def iptstable_invalid_processing_variables_page() -> None:
         ("type", [("Title", None)]),
         ("empty-label", [(" ", "datafiles.raw.metadata.entry.title")]),
         ("empty-path", [("Title", "\t")]),
+        ("non-iterable", 42),
     ]
     for name, processing_variables in cases:
         try:

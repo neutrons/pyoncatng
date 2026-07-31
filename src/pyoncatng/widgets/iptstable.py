@@ -65,7 +65,13 @@ def _validate_processing_variables(
                 f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
             )
         label, path = value
-        if not isinstance(label, str) or not isinstance(path, str) or not label.strip() or not path.strip():
+        if not isinstance(label, str) or not isinstance(path, str):
+            raise ValueError(
+                f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
+            )
+        label = label.strip()
+        path = path.strip()
+        if not label or not path:
             raise ValueError(
                 f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
             )
@@ -90,7 +96,8 @@ class IPTSTable(ui.card):
         Ordered ``(display label, ONCat metadata path)`` pairs to show and
         query. ``ID`` is always added as the first column and must not be
         included here. Each pair must contain non-empty strings, and labels
-        must be unique. Defaults to Title, Start Time, and Total Counts.
+        must be unique. Leading and trailing whitespace is removed from each
+        label and path. Defaults to Title, Start Time, and Total Counts.
 
     Example
     -------

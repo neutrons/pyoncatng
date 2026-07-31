@@ -176,6 +176,7 @@ async def test_iptstable_rejects_invalid_processing_variables(user: User) -> Non
     await user.should_see("type: processing_variables[0] must be a (label, path) pair of non-empty strings")
     await user.should_see("empty-label: processing_variables[0] must be a (label, path) pair of non-empty strings")
     await user.should_see("empty-path: processing_variables[0] must be a (label, path) pair of non-empty strings")
+    await user.should_see("non-iterable: processing_variables must be an iterable of (label, path) pairs.")
 
 
 async def test_iptstable_empty_result_shows_message(user: User) -> None:
