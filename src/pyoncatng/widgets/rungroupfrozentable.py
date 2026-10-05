@@ -276,11 +276,14 @@ class RunGroupFrozenTable(ui.card):
         group_by: str,
         run_idkey: str = DEFAULT_RUN_IDKEY,
     ) -> None:
-        validate_rows(rows, group_by, run_idkey)
+        frozen_rows = tuple(freeze(copy.deepcopy(dict(row))) for row in rows)
+        # Validate the representation that will actually be grouped. Freezing
+        # can change a custom hashable Mapping into an unhashable mapping proxy.
+        validate_rows(frozen_rows, group_by, run_idkey)
         super().__init__()
         self._group_by = group_by
         self._run_idkey = run_idkey
-        self._rows: Tuple[Row, ...] = tuple(freeze(copy.deepcopy(dict(row))) for row in rows)
+        self._rows: Tuple[Row, ...] = frozen_rows
         self._groups = build_groups(self._rows, group_by)
         self._build_ui()
 

@@ -7,13 +7,12 @@ widget: a read-only NiceGUI table that groups run dictionaries by a key (here
 run data locally so you can focus on the widget's behavior.
 
 ## Prerequisites
-pixi run tutorial-rungroupfrozentable
 - The project's pixi environment (`pixi install`).
 
 ## Run it
 
 ```console
-
+pixi run tutorial-rungroupfrozentable
 ```
 
 or directly, with options:

@@ -39,6 +39,13 @@ ROWS = [
     {"ID": 123, "Title": "A", "Run": "r123"},
 ]
 
+
+class HashableMapping(dict):
+    """Mapping used to verify validation after values are frozen."""
+
+    __hash__ = object.__hash__
+
+
 # -- unit tests: grouping -----------------------------------------------------
 
 
@@ -295,6 +302,13 @@ async def test_constructor_validates(user: User) -> None:
     await user.should_see("error: rows must not be empty.")
     with user, pytest.raises(ValueError, match="missing the group_by key"):
         RunGroupFrozenTable(rows=[{"ID": 1}], group_by="Title")
+
+
+async def test_constructor_rejects_group_value_unhashable_after_freezing(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    rows = [{"ID": 1, "Title": HashableMapping(value="A")}]
+    with user, pytest.raises(ValueError, match="must be hashable"):
+        RunGroupFrozenTable(rows=rows, group_by="Title")
 
 
 async def test_selected_group_indexes(user: User, monkeypatch) -> None:
