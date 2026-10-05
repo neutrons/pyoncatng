@@ -11,6 +11,7 @@ from nicegui import ui
 
 from pyoncatng.widgets.iptstable import IPTSTable
 from pyoncatng.widgets.login import OncatLogin
+from pyoncatng.widgets.rungroupfrozentable import RunGroupFrozenTable
 from pyoncatng.widgets.runtable import RunTable
 
 # Column set and generated rows for the RunTable pages. Fetching from ONCat is
@@ -157,6 +158,29 @@ def iptstable_invalid_processing_variables_page() -> None:
             IPTSTable(agent=FakeAgent(), processing_variables=processing_variables)
         except ValueError as error:
             ui.label(f"{name}: {error}")
+
+
+# Sample rows for the RunGroupFrozenTable pages: Title "A" appears at indexes 0,
+# 1, and 3 (non-consecutive, out-of-order IDs), Title "B" at index 2 (str ID).
+RUNGROUP_ROWS = [
+    {"ID": 124, "Title": "A"},
+    {"ID": 129, "Title": "A"},
+    {"ID": "125", "Title": "B"},
+    {"ID": 123, "Title": "A"},
+]
+
+
+@ui.page("/rungroupfrozentable")
+def rungroupfrozentable_page() -> None:
+    RunGroupFrozenTable(rows=RUNGROUP_ROWS, group_by="Title")
+
+
+@ui.page("/rungroupfrozentable-empty")
+def rungroupfrozentable_empty_page() -> None:
+    try:
+        RunGroupFrozenTable(rows=[], group_by="Title")
+    except ValueError as error:
+        ui.label(f"error: {error}")
 
 
 if __name__ in {"__main__", "__mp_main__"}:
