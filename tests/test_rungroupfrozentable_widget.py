@@ -19,6 +19,7 @@ from nicegui.testing import User
 
 from pyoncatng.widgets.rungroupfrozentable import (
     GROUP_INDEX_KEY,
+    RESERVED_GROUP_KEYS,
     RunGroupFrozenTable,
     build_group_rows,
     build_groups,
@@ -125,6 +126,12 @@ def test_validate_rejects_empty_rows() -> None:
         validate_rows([], "Title")
 
 
+@pytest.mark.parametrize("group_by", sorted(RESERVED_GROUP_KEYS))
+def test_validate_rejects_reserved_group_by(group_by: str) -> None:
+    with pytest.raises(ValueError, match="is reserved"):
+        validate_rows([{"ID": 1, group_by: "A"}], group_by)
+
+
 def test_validate_rejects_missing_group_by() -> None:
     with pytest.raises(ValueError, match="missing the group_by key"):
         validate_rows([{"ID": 1, "Title": "A"}, {"ID": 2}], "Title")
@@ -155,9 +162,11 @@ def test_run_id_defaults_and_casts() -> None:
 
 
 def test_freeze_makes_nested_values_read_only() -> None:
-    frozen = freeze({"ID": 1, "tags": [1, [2]], "meta": {"a": {"b": 1}}})
+    frozen = freeze({"ID": 1, "tags": [1, [2]], "labels": {"a", "b"}, "meta": {"a": {"b": 1}}})
     assert isinstance(frozen, MappingProxyType)
     assert frozen["tags"] == (1, (2,))
+    assert frozen["labels"] == frozenset({"a", "b"})
+    assert isinstance(frozen["labels"], frozenset)
     assert isinstance(frozen["meta"], MappingProxyType)
     assert isinstance(frozen["meta"]["a"], MappingProxyType)
     with pytest.raises(TypeError):
