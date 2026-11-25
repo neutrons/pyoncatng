@@ -133,6 +133,15 @@ def test_validate_rejects_empty_rows() -> None:
         validate_rows([], "Title")
 
 
+def test_validate_accepts_empty_rows_when_allowed() -> None:
+    validate_rows([], "Title", allow_empty=True)
+
+
+def test_validate_rejects_reserved_group_by_when_empty_allowed() -> None:
+    with pytest.raises(ValueError, match="is reserved"):
+        validate_rows([], "Size", allow_empty=True)
+
+
 @pytest.mark.parametrize("group_by", sorted(RESERVED_GROUP_KEYS))
 def test_validate_rejects_reserved_group_by(group_by: str) -> None:
     with pytest.raises(ValueError, match="is reserved"):
@@ -370,3 +379,47 @@ async def test_on_selection_change_delegates(user: User, monkeypatch) -> None:
 
     assert widget.on_selection_change(handler) is widget
     assert captured["callback"] is handler
+
+
+async def test_empty_has_headers_and_no_rows(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user:
+        widget = RunGroupFrozenTable.empty(group_by="Title")
+    assert widget.rows == ()
+    assert widget.groups == ()
+    assert widget.group_by == "Title"
+    assert widget.run_idkey == "ID"
+    options = widget._table.options
+    assert [column["field"] for column in options["columnDefs"]] == ["Title", "First", "Last", "Size"]
+    assert options["rowData"] == []
+
+
+async def test_empty_selection_accessors_return_nothing(user: User, monkeypatch) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user:
+        widget = RunGroupFrozenTable.empty(group_by="Title")
+    _stub_selection(monkeypatch, widget, [])
+    assert await widget.selected_group_indexes() == ()
+    assert await widget.selected_groups() == ()
+    assert await widget.selected_source_rows() == ()
+
+
+async def test_empty_rows_for_group_reports_no_groups(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user:
+        widget = RunGroupFrozenTable.empty(group_by="Title")
+    with pytest.raises(IndexError, match="the table has no groups"):
+        widget.rows_for_group(0)
+
+
+async def test_empty_rejects_reserved_group_by(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user, pytest.raises(ValueError, match="is reserved"):
+        RunGroupFrozenTable.empty(group_by="Size")
+
+
+async def test_empty_uses_run_idkey(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user:
+        widget = RunGroupFrozenTable.empty(group_by="Title", run_idkey="Run")
+    assert widget.run_idkey == "Run"

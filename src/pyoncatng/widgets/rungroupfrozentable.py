@@ -19,6 +19,10 @@ The widget cannot be changed after it is created:
 
 The selection accessors read ``"_group_index"`` from the selected grid rows and
 then return values from ``groups`` and ``rows``, never from the grid's row data.
+
+The constructor rejects empty ``rows``, so that an empty list passed by mistake is
+reported. ``RunGroupFrozenTable.empty(group_by=...)`` creates a table with the
+column headers and no rows for the cases where an empty table is intended.
 """
 
 import copy
@@ -111,7 +115,13 @@ def run_id(row: Row, run_idkey: str) -> int:
     raise ValueError(f"run ID {run_idkey!r} must be an int or a str that int() accepts, got {value!r}.")
 
 
-def validate_rows(rows: Sequence[Row], group_by: str, run_idkey: str = DEFAULT_RUN_IDKEY) -> None:
+def validate_rows(
+    rows: Sequence[Row],
+    group_by: str,
+    run_idkey: str = DEFAULT_RUN_IDKEY,
+    *,
+    allow_empty: bool = False,
+) -> None:
     """Check ``rows`` against the construction rules.
 
     Parameters
@@ -122,15 +132,19 @@ def validate_rows(rows: Sequence[Row], group_by: str, run_idkey: str = DEFAULT_R
         Key every row must contain, with a hashable value.
     run_idkey : str, optional
         Key every row must contain, with a valid run ID. Defaults to ``"ID"``.
+    allow_empty : bool, optional
+        If true, empty ``rows`` are accepted. The other rules still apply, so a
+        reserved ``group_by`` is rejected. Defaults to false. Only
+        :meth:`RunGroupFrozenTable.empty` sets it.
 
     Raises
     ------
     ValueError
-        If ``rows`` is empty, a row is missing ``group_by``, a ``group_by``
-        value is not hashable or ``group_by`` is reserved, or a run ID is
-        missing or not convertible to ``int``.
+        If ``rows`` is empty and ``allow_empty`` is false, a row is missing
+        ``group_by``, a ``group_by`` value is not hashable or ``group_by`` is
+        reserved, or a run ID is missing or not convertible to ``int``.
     """
-    if len(rows) == 0:
+    if len(rows) == 0 and not allow_empty:
         raise ValueError("rows must not be empty.")
     if group_by in RESERVED_GROUP_KEYS:
         raise ValueError(f"group_by {group_by!r} is reserved and cannot be used.")
@@ -247,6 +261,9 @@ class RunGroupFrozenTable(ui.card):
         Run-dict key holding the run ID, used to compute ``"First"`` and
         ``"Last"``. Values must be ``int``, or ``str`` values that ``int()``
         accepts. Defaults to ``"ID"``.
+    _allow_empty : bool, optional
+        Internal. Accepts empty ``rows``; only :meth:`empty` sets it. Defaults
+        to false, so an empty ``rows`` passed by mistake is still reported.
 
     Raises
     ------
@@ -254,6 +271,10 @@ class RunGroupFrozenTable(ui.card):
         If ``rows`` is empty, a row is missing ``group_by``, a ``group_by``
         value is not hashable, or a run ID is missing or not convertible to
         ``int``.
+
+    Notes
+    -----
+    To show the column headers with no runs, use :meth:`empty`.
 
     Examples
     --------
@@ -275,17 +296,46 @@ class RunGroupFrozenTable(ui.card):
         rows: Sequence[Row],
         group_by: str,
         run_idkey: str = DEFAULT_RUN_IDKEY,
+        _allow_empty: bool = False,
     ) -> None:
         frozen_rows = tuple(freeze(copy.deepcopy(dict(row))) for row in rows)
         # Validate the representation that will actually be grouped. Freezing
         # can change a custom hashable Mapping into an unhashable mapping proxy.
-        validate_rows(frozen_rows, group_by, run_idkey)
+        validate_rows(frozen_rows, group_by, run_idkey, allow_empty=_allow_empty)
         super().__init__()
         self._group_by = group_by
         self._run_idkey = run_idkey
         self._rows: Tuple[Row, ...] = frozen_rows
         self._groups = build_groups(self._rows, group_by)
         self._build_ui()
+
+    @classmethod
+    def empty(cls, *, group_by: str, run_idkey: str = DEFAULT_RUN_IDKEY) -> "RunGroupFrozenTable":
+        """Create a table that shows the column headers and no rows.
+
+        The constructor rejects empty ``rows`` so that an empty list passed by
+        mistake is reported. Use this method when an empty table is intended,
+        for example before any runs are loaded.
+
+        Parameters
+        ----------
+        group_by : str
+            Key shown in the first column. It must not be a reserved name.
+        run_idkey : str, optional
+            Run-dict key holding the run ID. Defaults to ``"ID"``.
+
+        Returns
+        -------
+        RunGroupFrozenTable
+            A table with empty ``rows`` and ``groups``, and columns
+            ``[group_by, "First", "Last", "Size"]``.
+
+        Raises
+        ------
+        ValueError
+            If ``group_by`` is reserved.
+        """
+        return cls(rows=(), group_by=group_by, run_idkey=run_idkey, _allow_empty=True)
 
     def _build_ui(self) -> None:
         # Fill the available width and lay the table out in a column so it grows
@@ -402,8 +452,11 @@ class RunGroupFrozenTable(ui.card):
         Raises
         ------
         IndexError
-            If ``group_index`` is outside ``0 .. len(groups) - 1``.
+            If the table has no groups, or ``group_index`` is outside
+            ``0 .. len(groups) - 1``.
         """
+        if not self._groups:
+            raise IndexError("the table has no groups")
         if not 0 <= group_index < len(self._groups):
             raise IndexError(f"group_index must be in 0 .. {len(self._groups) - 1}, got {group_index}.")
         return tuple(self._rows[row_index] for row_index in self._groups[group_index])
