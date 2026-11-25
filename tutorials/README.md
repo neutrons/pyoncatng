@@ -30,6 +30,7 @@ python tutorials/login/main.py
 | `runtable` | Browse run data with the `RunTable` widget (selectable rows, draggable columns, locked `run_number`). |
 | `iptstable` | Fetch and browse an experiment's runs by IPTS number with the `IPTSTable` widget (requires sign-in). |
 | `rungroupfrozentable` | Browse runs grouped by title with the read-only `RunGroupFrozenTable` widget, and recover the source runs of selected groups. |
+| `iptsrungroupfrozentable` | Fetch an experiment's runs by IPTS number and browse them grouped by title with the `IPTSRunGroupFrozenTable` widget (requires sign-in). |
 
 As new widgets are added (table, search, …), add a new subfolder here plus a
 matching `tutorial-<name>` task in `pyproject.toml`.
