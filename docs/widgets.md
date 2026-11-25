@@ -260,3 +260,98 @@ table.on_selection_change(on_change)
 .. autoclass:: pyoncatng.widgets.rungroupfrozentable.RunGroupFrozenTable
    :members:
 ```
+
+## IPTS Grouped Run Table
+
+### Using the table
+
+```{figure} media/iptsRunGroupFrozenTable.png
+:alt: IPTSRunGroupFrozenTable widget with an IPTS input, a Load button, and a table of run groups with Title, First, Last, and Size columns, with the first group selected, above a table listing that group's runs
+:width: 100%
+
+The IPTS grouped run table from the tutorial, showing the runs of IPTS-24703
+on SNS / USANS grouped by title. The selected group, `Align:0 stop rheometer`,
+holds eight runs; the table below it lists them.
+```
+
+The IPTS grouped run table loads the runs of one experiment and shows them
+grouped, one row per group. Type the experiment's IPTS number, either as a bare
+number such as `24703` or as `IPTS-24703`, and click **Load** or press `Enter`.
+Runs that have the same value for the grouping variable, for example the same
+title, form one group. The application chooses the grouping variable when it
+creates the widget. Runs that have no value for it form one group. The groups
+are ordered by their most recent run.
+
+The columns are those of the [grouped run table](#grouped-run-table): the
+grouping value in the leftmost column, then `First`, `Last`, and `Size`. Select
+groups as described there: click a row, `Ctrl`/`Cmd` + click to add or remove
+individual rows, and `Shift` + click to select a contiguous range.
+
+Every **Load** replaces the table and clears the selection, including a reload of
+the same IPTS. The application is told that the selection changed, so what it
+shows for the selected groups is cleared too.
+
+You must be signed in to ONCat first, usually with the [login card](#oncatlogin)
+on the same page. If the runs cannot be loaded, for example because you are not
+signed in or the IPTS number does not exist, a message appears below an empty
+table. The same happens if the IPTS has no runs.
+
+### Implementation Details
+
+`IPTSRunGroupFrozenTable` is a `ui.card` that composes an IPTS input and a
+**Load** button with a [`RunGroupFrozenTable`](#grouped-run-table), as
+[`IPTSTable`](#ipts-run-table) composes them with a `RunTable`. Each **Load**
+fetches the complete run list of the experiment and replaces the inner
+`RunGroupFrozenTable` with a new instance. The inner table is never changed, and
+it is not public. The helpers of `IPTSTable` (`normalize_ipts`,
+`build_projection`, and `rows_from_runs`) are reused as they are, so the facility,
+the instrument, the sort order, and the messages match `IPTSTable`.
+
+Constructor arguments:
+
+- `agent` — the authenticated ONCat agent, typically `OncatLogin.agent`. It may
+  be disconnected when passed.
+- `group_by` — the label of the processing variable that defines the groups. It
+  must be one of the labels in `processing_variables`. `ID` is reserved and
+  cannot be used.
+- `facility` and `instrument` — default to `"SNS"` and `"USANS"`.
+- `processing_variables` — ordered `(display label, ONCat metadata path)` pairs,
+  as in `IPTSTable`. The default labels are `Title`, `Start Time`, and
+  `Total Counts`.
+
+The constructor raises `ValueError` if `processing_variables` is malformed,
+contains the label `ID` or a repeated label, or `group_by` is not one of its
+labels. All arguments are fixed for the lifetime of the widget.
+
+The widget stores only what must outlive one inner table: the callbacks
+registered with `on_selection_change`. It registers them again on each new inner
+table, and the live selection stays in the grid. After every **Load**, it also
+calls each callback with a selection-changed event, because the new table has no
+selection. A callback that takes no arguments is called without them. Otherwise
+it receives an event whose `sender` is the widget and whose `args` is empty.
+
+The members that read the table always use the current inner table. They have the
+names and meanings of `RunGroupFrozenTable`: the properties `rows`, `groups`, and
+`group_by`, the async methods `selected_group_indexes()`, `selected_groups()`, and
+`selected_source_rows()`, and the method `rows_for_group()`. Here `rows` holds one
+read-only row per run, keyed by the display labels and `ID`.
+
+Group indexes and row indexes are valid only until the next **Load**, because new
+runs move existing rows and groups.
+
+```python
+table = IPTSRunGroupFrozenTable(agent=login.agent, group_by="Title")
+
+async def on_change() -> None:
+    print("selected groups:", await table.selected_group_indexes())
+    print("selected run IDs:", [row["ID"] for row in await table.selected_source_rows()])
+
+table.on_selection_change(on_change)
+```
+
+See the [IPTSRunGroupFrozenTable tutorial](tutorials.md) for a runnable version.
+
+```{eval-rst}
+.. autoclass:: pyoncatng.widgets.iptsrungroupfrozentable.IPTSRunGroupFrozenTable
+   :members:
+```
