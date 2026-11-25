@@ -31,7 +31,7 @@ from typing import Any, Callable, Dict, Hashable, List, Mapping, Sequence, Tuple
 
 from nicegui import ui
 
-from .runtable import RunTable
+from pyoncatng.widgets.runtable import RunTable
 
 # Default run-dict key holding the run ID, used for the First and Last columns.
 DEFAULT_RUN_IDKEY = "ID"

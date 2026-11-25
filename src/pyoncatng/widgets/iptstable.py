@@ -20,8 +20,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import pyoncat
 from nicegui import ui
 
-from ..core.runs import list_runs
-from .runtable import RunTable
+from pyoncatng.core.runs import list_runs
+from pyoncatng.widgets.runtable import RunTable
 
 # Ordered ``(display column, run path)`` pairs backing the table. A ``None`` path
 # means the run's own ``id`` (the run number). The other columns read the raw

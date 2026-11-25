@@ -234,8 +234,25 @@ line-length = 120
 exclude = ["notebooks/**", "**/*.ipynb"]
 
 [tool.ruff.lint]
-select = ["A", "ARG", "ASYNC", "BLE", "C90", "E", "F", "I", "N", "UP032", "W"]
+select = [
+  "A",
+  "ARG",
+  "ASYNC",
+  "BLE",
+  "C90",
+  "E",
+  "F",
+  "I",
+  "N",
+  "TID252",
+  "UP032",
+  "W",
+]
 ignore = []
+
+[tool.ruff.lint.flake8-tidy-imports]
+# Ban sibling imports (``from .x import y``) as well as parent imports.
+ban-relative-imports = "all"
 
 [tool.ruff.lint.isort]
 known-first-party = ["pyoncatng"]

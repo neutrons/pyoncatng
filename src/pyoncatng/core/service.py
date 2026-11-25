@@ -19,7 +19,7 @@ from typing import Callable, Optional
 
 import pyoncat
 
-from .client import (
+from pyoncatng.core.client import (
     SESSION_CONNECTED,
     SESSION_NEEDS_LOGIN,
     build_agent,
