@@ -12,23 +12,29 @@ The helpers of ``IPTSTable`` (``normalize_ipts``, ``build_projection``, and
 without runs, and after a failed **Load**, the inner table is created with
 :meth:`~pyoncatng.widgets.rungroupfrozentable.RunGroupFrozenTable.empty`, so it
 always is a ``RunGroupFrozenTable``.
+
+The widget keeps the selection callbacks of the caller and registers them again on
+each new inner table. After every **Load** it sends each callback a
+selection-changed event, because the new table has no selection. The selection
+accessors always read the current inner table.
 """
 
 import asyncio
-from typing import Any, List, Optional, Sequence, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Tuple
 
 import pyoncat
 from nicegui import ui
+from nicegui.events import GenericEventArguments, handle_event
 
-from ..core.runs import list_runs
-from .iptstable import (
+from pyoncatng.core.runs import list_runs
+from pyoncatng.widgets.iptstable import (
     DEFAULT_PROCESSING_VARIABLES,
     KEY_COLUMN,
     IPTSTable,
     ProcessingVariable,
     _validate_processing_variables,
 )
-from .rungroupfrozentable import RunGroupFrozenTable
+from pyoncatng.widgets.rungroupfrozentable import Group, Row, RunGroupFrozenTable
 
 # -- pure helpers (unit-testable without a UI context) -----------------------
 
@@ -102,6 +108,13 @@ class IPTSRunGroupFrozenTable(ui.card):
         If ``processing_variables`` is malformed, contains the label ``"ID"``
         or a repeated label, or ``group_by`` is not one of its labels.
 
+    Notes
+    -----
+    Every **Load** replaces the inner table, clears the selection, and sends each
+    callback registered with :meth:`on_selection_change` a selection-changed
+    event with empty ``args``. Group indexes and row indexes are valid only until
+    the next **Load**, because new runs move existing rows and groups.
+
     Example
     -------
     .. code-block:: python
@@ -128,6 +141,7 @@ class IPTSRunGroupFrozenTable(ui.card):
         self._processing_variables = processing_variables
         self._column_spec: List[Tuple[str, Optional[str]]] = [(KEY_COLUMN, None), *processing_variables]
         self._busy = False
+        self._callbacks: List[Callable[..., Any]] = []
         self._build_ui()
 
     # -- UI construction ----------------------------------------------------
@@ -156,7 +170,8 @@ class IPTSRunGroupFrozenTable(ui.card):
         """Replace the inner table with a new one that shows ``rows``.
 
         An empty ``rows`` creates the table with
-        :meth:`RunGroupFrozenTable.empty`.
+        :meth:`RunGroupFrozenTable.empty`. The stored selection callbacks are
+        registered on the new table and each receives a selection-changed event.
         """
         self._container.clear()
         with self._container:
@@ -164,6 +179,10 @@ class IPTSRunGroupFrozenTable(ui.card):
                 self._table = RunGroupFrozenTable(rows=rows, group_by=self._group_by, run_idkey=KEY_COLUMN)
             else:
                 self._table = RunGroupFrozenTable.empty(group_by=self._group_by, run_idkey=KEY_COLUMN)
+        for callback in self._callbacks:
+            self._table.on_selection_change(callback)
+        for callback in self._callbacks:
+            handle_event(callback, GenericEventArguments(sender=self, client=self.client, args={}))
 
     # -- data loading -------------------------------------------------------
 
@@ -200,3 +219,66 @@ class IPTSRunGroupFrozenTable(ui.card):
         finally:
             self._busy = False
             self._load_button.set_enabled(True)
+
+    # -- selection ----------------------------------------------------------
+
+    def on_selection_change(self, callback: Callable[..., Any]) -> "IPTSRunGroupFrozenTable":
+        """Register ``callback`` to run when the selection changes.
+
+        The callback also runs after every **Load**, which clears the selection.
+        Read the selection with :meth:`selected_group_indexes`,
+        :meth:`selected_groups`, or :meth:`selected_source_rows`.
+
+        Parameters
+        ----------
+        callback : Callable[..., Any]
+            Function called on each selection change, with no arguments or with
+            the event.
+
+        Returns
+        -------
+        IPTSRunGroupFrozenTable
+            ``self``, for chaining.
+        """
+        self._callbacks.append(callback)
+        self._table.on_selection_change(callback)
+        return self
+
+    async def selected_group_indexes(self) -> Tuple[int, ...]:
+        """Return the indexes into :attr:`groups` of the selected rows."""
+        return await self._table.selected_group_indexes()
+
+    async def selected_groups(self) -> Tuple[Group, ...]:
+        """Return the :attr:`groups` entries of the selected rows."""
+        return await self._table.selected_groups()
+
+    async def selected_source_rows(self) -> Tuple[Row, ...]:
+        """Return the :attr:`rows` of the selected groups."""
+        return await self._table.selected_source_rows()
+
+    def rows_for_group(self, group_index: int) -> Tuple[Row, ...]:
+        """Return the :attr:`rows` of one group.
+
+        Raises
+        ------
+        IndexError
+            If the table has no groups, or ``group_index`` is out of range.
+        """
+        return self._table.rows_for_group(group_index)
+
+    # -- read-only properties -----------------------------------------------
+
+    @property
+    def rows(self) -> Tuple[Row, ...]:
+        """Read-only rows of the last **Load**, one per run, newest first."""
+        return self._table.rows
+
+    @property
+    def groups(self) -> Tuple[Group, ...]:
+        """One tuple of ascending indexes into :attr:`rows` per group."""
+        return self._table.groups
+
+    @property
+    def group_by(self) -> str:
+        """The label of the processing variable that defines the groups."""
+        return self._group_by
