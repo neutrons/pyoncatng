@@ -51,7 +51,7 @@ token. See the [login tutorial](tutorials.md) for a runnable example.
    :members:
 ```
 
-## Run table
+## Run Table
 
 ### Using the table
 
@@ -104,7 +104,7 @@ table.on_selection_change(on_change)
    :members:
 ```
 
-## IPTS run table
+## IPTS Run Table
 
 ### Using the table
 
@@ -159,7 +159,7 @@ methods, which delegate to the underlying table.
    :members:
 ```
 
-## Grouped run table
+## Grouped Run Table
 
 ### Using the table
 
