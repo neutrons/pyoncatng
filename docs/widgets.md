@@ -172,11 +172,12 @@ selected group, `Sample A 25C`, holds four runs; the table below it lists them.
 ```
 
 The grouped run table summarizes a list of runs by showing **one row per group**
-of related runs, for example all runs that share the same title. Each row has
-these columns:
+of related runs, for example all runs that share the same title. How the runs are
+grouped is described in {doc}`Grouping Runs <grouping>`. Each row has these
+columns:
 
-- The grouping value, such as the run title. This column is always the leftmost
-  one.
+- The group key, such as the run title. This column is always the leftmost one.
+  A blank cell means that the runs of the group have no value.
 - `First` and `Last` — the smallest and largest run numbers in the group. The
   runs in a group are not necessarily consecutive, so the group does not
   contain every run number between `First` and `Last`.
@@ -194,8 +195,8 @@ not sort the rows, and rows cannot be dragged.
 
 ### Implementation Details
 
-`RunGroupFrozenTable` groups run dictionaries by a key and shows one row per
-group, where [`RunTable`](#run-table) shows one row per run. Unlike `RunTable`,
+`RunGroupFrozenTable` groups run dictionaries with a grouping function and shows
+one row per group, where [`RunTable`](#run-table) shows one row per run. Unlike `RunTable`,
 it cannot be changed after it is created: it is a `ui.card` that wraps a private
 `RunTable`, and it does not expose the methods that replace the table's data
 (such as `set_rows()`, `options`, or `run_grid_method()`). The wrapped table
@@ -204,30 +205,39 @@ movable remaining columns, no row sorting, no row dragging, and multi-row
 selection.
 
 ```python
+from pyoncatng import by_pv
+
 rows = [
     {"ID": 123, "Title": "A"},
     {"ID": 124, "Title": "A"},
     {"ID": "125", "Title": "B"},
     {"ID": 129, "Title": "A"},
 ]
-table = RunGroupFrozenTable(rows=rows, group_by="Title")
+table = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("Title"), group_column="Title")
 table.groups  # ((0, 1, 3), (2,))
+table.group_keys  # ("A", "B")
 ```
 
 Constructor arguments:
 
 - `rows` — a non-empty sequence of run dictionaries. Each must contain
-  `group_by` and `run_idkey`.
-- `group_by` — the run-dict key used to group rows. Rows whose values are equal
-  form one group; comparison is exact, with no whitespace or case
-  normalization. Values must be hashable.
+  `run_idkey`.
+- `grouping_function` — a function that receives the read-only mapping of one
+  run and returns the key of its group. It is called once per run. Rows with
+  equal keys form one group; comparison is exact, with no whitespace or case
+  normalization. A key that is not a string is converted: `None` becomes the
+  empty string and any other value goes through `str()`. `by_pv(name)` builds
+  the function that groups by the value of one key.
+- `group_column` — the name of the leftmost column, which shows the key of each
+  group. It must be a non-empty string other than `First`, `Last`, `Size`, and
+  `_group_index`.
 - `run_idkey` — the run-dict key holding the run ID, used for the `First` and
   `Last` columns. Defaults to `"ID"`. Values must be `int`, or `str` values that
   `int()` accepts; `str` values are cast to `int`.
 
-The constructor raises `ValueError` if `rows` is empty, a row is missing
-`group_by`, a `group_by` value is not hashable, or a run ID is missing or cannot
-be converted to `int`.
+The constructor raises `ValueError` if `rows` is empty, `grouping_function` is not
+callable or fails for a run (the message names the run), `group_column` is
+invalid, or a run ID is missing or cannot be converted to `int`.
 
 The widget stores **read-only deep copies** of the input rows in `rows`. Each
 row is a read-only mapping (`types.MappingProxyType`), nested dicts are
@@ -235,10 +245,12 @@ read-only mappings, and nested lists are stored as tuples. Changing the caller's
 list or dicts afterwards has no effect, and the caller's run dictionaries are
 never mutated or enriched. `groups` is a `tuple[tuple[int, ...], ...]`: one
 tuple of ascending indexes into `rows` per group, ordered by the first
-occurrence of the group's value. `rows`, `groups`, `group_by`, and `run_idkey`
-are read-only properties.
+occurrence of the group's key. `group_keys` is a `tuple[str, ...]` with the key
+of each group, aligned with `groups`: it is the text in the first cell of the
+group's row. `rows`, `groups`, `group_keys`, `grouping_function`, `group_column`,
+and `run_idkey` are read-only properties.
 
-The visible columns are `[group_by, "First", "Last", "Size"]`. Each grid row
+The visible columns are `[group_column, "First", "Last", "Size"]`. Each grid row
 also carries an internal `"_group_index"` field, the index of its group in
 `groups`. It is hidden and is not a column.
 
@@ -277,10 +289,12 @@ holds eight runs; the table below it lists them.
 The IPTS grouped run table loads the runs of one experiment and shows them
 grouped, one row per group. Type the experiment's IPTS number, either as a bare
 number such as `24703` or as `IPTS-24703`, and click **Load** or press `Enter`.
-Runs that have the same value for the grouping variable, for example the same
-title, form one group. The application chooses the grouping variable when it
-creates the widget. Runs that have no value for it form one group. The groups
-are ordered by their most recent run.
+Runs that have the same group key, for example the same title, form one group.
+The application chooses the grouping when it creates the widget, either by the
+value of one variable or by a value computed from the run; see
+{doc}`Grouping Runs <grouping>`. Runs that have no value for the variable form
+one group whose leftmost cell is blank. The groups are ordered by their most
+recent run.
 
 The columns are those of the [grouped run table](#grouped-run-table): the
 grouping value in the leftmost column, then `First`, `Last`, and `Size`. Select
@@ -314,19 +328,25 @@ Constructor arguments:
 
 - `agent` — the authenticated ONCat agent, typically `OncatLogin.agent`. It may
   be disconnected when passed.
-- `group_by` — the label of the processing variable that defines the groups. It
-  must be one of the labels in `processing_variables`. `ID`, `First`, `Last`,
-  and `Size` are reserved and cannot be used, because the first is the run
-  identifier and the others are columns of the grouped table.
+- `grouping_function` — a function that receives the read-only mapping of one
+  run, with `ID` and the labels of `processing_variables` as keys, and returns
+  the key of its group; for example `by_pv("Title")`. See
+  [`RunGroupFrozenTable`](#grouped-run-table) for how the results are converted.
+- `group_column` — the name of the leftmost column, which shows the key of each
+  group. `ID`, `First`, `Last`, and `Size` are reserved and cannot be used,
+  because the first is the run identifier and the others are columns of the
+  grouped table.
 - `facility` and `instrument` — default to `"SNS"` and `"USANS"`.
 - `processing_variables` — ordered `(display label, ONCat metadata path)` pairs,
   as in `IPTSTable`. The default labels are `Title`, `Start Time`, and
   `Total Counts`.
 
 The constructor raises `ValueError` if `processing_variables` is malformed,
-contains the label `ID` or a repeated label, `group_by` is a reserved name, or
-`group_by` is not one of its labels. All arguments are fixed for the lifetime of
-the widget.
+contains the label `ID` or a repeated label, `grouping_function` is not callable,
+or `group_column` is empty or a reserved name. An error in the function, such as a
+mistyped label in `by_pv`, is not detected at construction: the first **Load**
+reports it in the message area, naming the row that failed. All
+arguments are fixed for the lifetime of the widget.
 
 The widget stores only what must outlive one inner table: the callbacks
 registered with `on_selection_change`. It registers them again on each new inner
@@ -339,8 +359,8 @@ the inner table is never passed to a callback. After a **Load**, `args` is empty
 for a change made by the user, `args` holds the arguments that the grid sent.
 
 The members that read the table always use the current inner table. They have the
-names and meanings of `RunGroupFrozenTable`: the properties `rows`, `groups`, and
-`group_by`, the async methods `selected_group_indexes()`, `selected_groups()`, and
+names and meanings of `RunGroupFrozenTable`: the properties `rows`, `groups`,
+`group_keys`, `grouping_function`, and `group_column`, the async methods `selected_group_indexes()`, `selected_groups()`, and
 `selected_source_rows()`, and the method `rows_for_group()`. Here `rows` holds one
 read-only row per run, keyed by the display labels and `ID`.
 
@@ -348,7 +368,9 @@ Group indexes and row indexes are valid only until the next **Load**, because ne
 runs move existing rows and groups.
 
 ```python
-table = IPTSRunGroupFrozenTable(agent=login.agent, group_by="Title")
+from pyoncatng import by_pv
+
+table = IPTSRunGroupFrozenTable(agent=login.agent, grouping_function=by_pv("Title"), group_column="Title")
 
 async def on_change() -> None:
     print("selected groups:", await table.selected_group_indexes())
