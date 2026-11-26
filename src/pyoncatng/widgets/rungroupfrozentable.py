@@ -29,7 +29,7 @@ column headers and no rows for the cases where an empty table is intended.
 
 import copy
 from types import MappingProxyType
-from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, cast
 
 from nicegui import ui
 
@@ -351,7 +351,7 @@ class RunGroupFrozenTable(ui.card):
         self,
         *,
         rows: Sequence[Row],
-        grouping_function: Optional[Callable[[Row], str]],
+        grouping_function: Callable[[Row], str],
         group_column: str,
         run_idkey: str = DEFAULT_RUN_IDKEY,
         _allow_empty: bool = False,
@@ -398,7 +398,9 @@ class RunGroupFrozenTable(ui.card):
         ValueError
             If ``group_column`` is not a non-empty string or is reserved.
         """
-        return cls(rows=(), grouping_function=None, group_column=group_column, _allow_empty=True)
+        # An empty table has no grouping, so it stores None; _allow_empty lets the constructor accept it.
+        no_function = cast(Callable[[Row], str], None)
+        return cls(rows=(), grouping_function=no_function, group_column=group_column, _allow_empty=True)
 
     def _build_ui(self) -> None:
         # Fill the available width and lay the table out in a column so it grows
