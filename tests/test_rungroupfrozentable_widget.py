@@ -390,6 +390,17 @@ async def test_first_column_shows_the_key_not_the_raw_value(user: User) -> None:
     assert [row["Value"] for row in widget._table.options["rowData"]] == ["1", ""]
 
 
+async def test_group_column_may_contain_dots(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    rows = [{"ID": 1, "motor.readX": 2.5}, {"ID": 2, "motor.readX": 2.5}, {"ID": 3, "motor.readX": 7}]
+    with user:
+        widget = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("motor.readX"), group_column="motor.readX")
+    options = widget._table.options
+    assert options["suppressFieldDotNotation"] is True
+    assert [column["field"] for column in options["columnDefs"]][0] == "motor.readX"
+    assert [row["motor.readX"] for row in options["rowData"]] == ["2.5", "7"]
+
+
 async def test_selected_group_indexes(user: User, monkeypatch) -> None:
     await user.open("/rungroupfrozentable")
     widget = _widget(user)

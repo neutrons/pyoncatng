@@ -75,6 +75,13 @@ def test_options_no_row_dragging() -> None:
     assert opts["suppressRowDrag"] is True
 
 
+def test_build_options_treats_dots_in_column_names_as_plain_keys() -> None:
+    opts = RunTable.build_options(["ID", "motor.readX"], rows=[{"ID": 1, "motor.readX": 2.5}], key_column="ID")
+    assert opts["suppressFieldDotNotation"] is True
+    assert [column["field"] for column in opts["columnDefs"]] == ["ID", "motor.readX"]
+    assert opts["rowData"] == [{"ID": 1, "motor.readX": 2.5}]
+
+
 def test_options_multiple_row_selection() -> None:
     # Current AG Grid object API (not the deprecated "multiple" string): row
     # multi-select, click enabled, no checkbox column or header select-all.
