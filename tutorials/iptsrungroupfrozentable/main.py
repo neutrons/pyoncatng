@@ -24,6 +24,7 @@ import argparse
 import argcomplete
 from nicegui import ui
 
+from pyoncatng import by_pv
 from pyoncatng.configuration import Configuration, get_data
 from pyoncatng.widgets.iptsrungroupfrozentable import IPTSRunGroupFrozenTable
 from pyoncatng.widgets.login import OncatLogin
@@ -50,7 +51,9 @@ def index() -> None:
         login = OncatLogin(client_id=get_data("login.oncat", "client_id"), orientation="row")
         # The agent is created once and reused; passing it now is fine even though
         # it starts disconnected -- it becomes usable after the sign-in above.
-        groups = IPTSRunGroupFrozenTable(agent=login.agent, group_by="Title").style("height: 400px")
+        groups = IPTSRunGroupFrozenTable(
+            agent=login.agent, grouping_function=by_pv("Title"), group_column="Title"
+        ).style("height: 400px")
 
         selection_label = ui.label("No groups selected.").classes("text-caption")
         sources = RunTable(columns=SOURCE_COLUMNS, rows=[], key_column="ID").style("height: 300px")

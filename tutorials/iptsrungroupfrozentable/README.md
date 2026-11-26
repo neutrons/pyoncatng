@@ -51,10 +51,13 @@ Then open the printed URL (default <http://127.0.0.1:8080>).
 ## Notes
 
 - The widget receives the authenticated agent from the login card
-  (`IPTSRunGroupFrozenTable(agent=login.agent, group_by="Title")`). It does not
-  manage the connection itself.
-- `group_by` must be one of the processing-variable labels (`Title`,
-  `Start Time`, or `Total Counts` by default). `ID` cannot be used.
+  (`IPTSRunGroupFrozenTable(agent=login.agent, grouping_function=by_pv("Title"),
+  group_column="Title")`). It does not manage the connection itself.
+- `grouping_function` returns the group key of a run, and `by_pv("Title")` groups
+  by the title. `group_column` names the first column and cannot be `ID`. A
+  name that matches no column, such as `by_pv("Subject")`, is reported by the
+  first **Load** as a message below the table. See
+  [Grouping Runs](../../docs/grouping.rst) for other ways to group.
 - The page reads the selection through `on_selection_change` and the async
   `selected_group_indexes` and `selected_source_rows` accessors. The callback
   also runs after every **Load** of an IPTS number, when the selection is cleared.

@@ -152,7 +152,7 @@ def test_validate_rejects_reserved_group_column(group_column: str) -> None:
         validate_group_column(group_column)
 
 
-def test_group_by_pv_on_a_missing_key_names_the_row() -> None:
+def test_by_pv_on_a_missing_key_names_the_row() -> None:
     with pytest.raises(ValueError, match=r"rows\[0\].*'Title'"):
         compute_group_keys([{"ID": 1}], by_pv("Title"))
 
