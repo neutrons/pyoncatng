@@ -14,9 +14,9 @@ without runs, and after a failed **Load**, the inner table is created with
 always is a ``RunGroupFrozenTable``.
 
 The widget keeps the selection callbacks of the caller and registers them again on
-each new inner table. After every **Load** it sends each callback a
-selection-changed event, because the new table has no selection. The selection
-accessors always read the current inner table.
+each new inner table. After every **Load** of an IPTS number it sends each
+callback a selection-changed event, because the new table has no selection. The
+selection accessors always read the current inner table.
 """
 
 import asyncio
@@ -32,9 +32,9 @@ from pyoncatng.widgets.iptstable import (
     KEY_COLUMN,
     IPTSTable,
     ProcessingVariable,
-    _validate_processing_variables,
+    validate_processing_variables,
 )
-from pyoncatng.widgets.rungroupfrozentable import Group, Row, RunGroupFrozenTable
+from pyoncatng.widgets.rungroupfrozentable import RESERVED_GROUP_KEYS, Group, Row, RunGroupFrozenTable
 
 # -- pure helpers (unit-testable without a UI context) -----------------------
 
@@ -50,7 +50,8 @@ def _validate_construction(
     processing_variables : sequence of (str, str)
         Ordered ``(display label, ONCat metadata path)`` pairs.
     group_by : str
-        Label of the processing variable that defines the groups.
+        Label of the processing variable that defines the groups. It must not
+        be a name that ``RunGroupFrozenTable`` reserves.
 
     Returns
     -------
@@ -60,16 +61,16 @@ def _validate_construction(
     Raises
     ------
     ValueError
-        If a pair is malformed, a label is ``"ID"`` or is repeated, or
+        If a pair is malformed, a label is ``"ID"`` or is repeated,
+        ``group_by`` is one of the names that ``RunGroupFrozenTable`` reserves
+        (``"First"``, ``"Last"``, ``"Size"``, and ``"_group_index"``), or
         ``group_by`` is not one of the labels. The last rule also excludes
         ``"ID"`` as ``group_by``.
     """
-    validated = _validate_processing_variables(processing_variables)
+    validated = validate_processing_variables(processing_variables)
     labels = [label for label, _ in validated]
-    if KEY_COLUMN in labels:
-        raise ValueError(f"{KEY_COLUMN!r} is reserved")
-    if len(labels) != len(set(labels)):
-        raise ValueError("processing_variables labels must be unique")
+    if group_by in RESERVED_GROUP_KEYS:
+        raise ValueError(f"group_by {group_by!r} is reserved and cannot be used.")
     if group_by not in labels:
         raise ValueError(f"group_by {group_by!r} must be one of the processing_variables labels {labels!r}.")
     return validated
@@ -89,9 +90,9 @@ class IPTSRunGroupFrozenTable(ui.card):
         in the message area.
     group_by : str
         Label of the processing variable that defines the groups. It must be
-        one of the labels in ``processing_variables``. ``"ID"`` is reserved
-        and cannot be used. Runs without a value for the variable form one
-        group.
+        one of the labels in ``processing_variables``. ``"ID"``, ``"First"``,
+        ``"Last"``, and ``"Size"`` are reserved and cannot be used. Runs without
+        a value for the variable form one group.
     facility : str, optional
         Facility passed to ``Run.list``. Defaults to ``"SNS"``.
     instrument : str, optional
@@ -106,14 +107,19 @@ class IPTSRunGroupFrozenTable(ui.card):
     ------
     ValueError
         If ``processing_variables`` is malformed, contains the label ``"ID"``
-        or a repeated label, or ``group_by`` is not one of its labels.
+        or a repeated label, ``group_by`` is a reserved name, or ``group_by``
+        is not one of its labels.
 
     Notes
     -----
-    Every **Load** replaces the inner table, clears the selection, and sends each
-    callback registered with :meth:`on_selection_change` a selection-changed
-    event with empty ``args``. Group indexes and row indexes are valid only until
-    the next **Load**, because new runs move existing rows and groups.
+    Every **Load** of an IPTS number replaces the inner table, clears the
+    selection, and sends each callback registered with :meth:`on_selection_change`
+    a selection-changed event with empty ``args``. A **Load** with an empty IPTS
+    field only shows a message and changes nothing else. A callback also receives
+    an event when the user changes the selection. Every event has this widget as
+    its ``sender``, and the inner table is never passed to a callback. Group
+    indexes and row indexes are valid only until the next **Load**, because new
+    runs move existing rows and groups.
 
     Example
     -------
@@ -148,6 +154,8 @@ class IPTSRunGroupFrozenTable(ui.card):
 
     def _build_ui(self) -> None:
         # Fill the available width and lay children out in a column, as IPTSTable does.
+        # The container and the inner table grow to the height that the caller
+        # gives the widget (e.g. via ``.style("height: 600px")``).
         self.classes("w-full column")
         with self:
             with ui.row().classes("items-center w-full"):
@@ -156,7 +164,7 @@ class IPTSRunGroupFrozenTable(ui.card):
                 # Load on click, and also on Enter for convenience.
                 self._input.on("keydown.enter", self._on_load)
                 self._load_button = ui.button("Load", on_click=self._on_load)
-            self._container = ui.column().classes("w-full")
+            self._container = ui.column().classes("w-full").style("flex: 1 1 auto; min-height: 0")
             self._message = ui.label("").classes("text-negative")
             self._message.set_visibility(False)
         self._replace_table([])
@@ -165,6 +173,22 @@ class IPTSRunGroupFrozenTable(ui.card):
         """Show (or clear, when ``text`` is empty) the inline message area."""
         self._message.set_text(text)
         self._message.set_visibility(bool(text))
+
+    def _notify(self, callback: Callable[..., Any], args: Any) -> None:
+        """Call ``callback`` with an event whose sender is this widget, as NiceGUI does."""
+        handle_event(callback, GenericEventArguments(sender=self, client=self.client, args=args))
+
+    def _forward(self, callback: Callable[..., Any]) -> Callable[[GenericEventArguments], None]:
+        """Return a handler for the inner table that passes its events to ``callback`` as events of this widget.
+
+        This keeps the private inner table out of the event, and gives the callback
+        the same sender and UI context for every event.
+        """
+
+        def forward(event: GenericEventArguments) -> None:
+            self._notify(callback, event.args)
+
+        return forward
 
     def _replace_table(self, rows: Sequence[Any]) -> None:
         """Replace the inner table with a new one that shows ``rows``.
@@ -179,10 +203,11 @@ class IPTSRunGroupFrozenTable(ui.card):
                 self._table = RunGroupFrozenTable(rows=rows, group_by=self._group_by, run_idkey=KEY_COLUMN)
             else:
                 self._table = RunGroupFrozenTable.empty(group_by=self._group_by, run_idkey=KEY_COLUMN)
+            self._table.style("flex: 1 1 auto")
         for callback in self._callbacks:
-            self._table.on_selection_change(callback)
+            self._table.on_selection_change(self._forward(callback))
         for callback in self._callbacks:
-            handle_event(callback, GenericEventArguments(sender=self, client=self.client, args={}))
+            self._notify(callback, {})
 
     # -- data loading -------------------------------------------------------
 
@@ -225,7 +250,8 @@ class IPTSRunGroupFrozenTable(ui.card):
     def on_selection_change(self, callback: Callable[..., Any]) -> "IPTSRunGroupFrozenTable":
         """Register ``callback`` to run when the selection changes.
 
-        The callback also runs after every **Load**, which clears the selection.
+        The callback also runs after every **Load** of an IPTS number, which clears
+        the selection.
         Read the selection with :meth:`selected_group_indexes`,
         :meth:`selected_groups`, or :meth:`selected_source_rows`.
 
@@ -233,7 +259,9 @@ class IPTSRunGroupFrozenTable(ui.card):
         ----------
         callback : Callable[..., Any]
             Function called on each selection change, with no arguments or with
-            the event.
+            the event. The event's ``sender`` is this widget. Its ``args`` are
+            empty after a **Load**, and hold the arguments that the grid sent for
+            a change made by the user.
 
         Returns
         -------
@@ -241,7 +269,7 @@ class IPTSRunGroupFrozenTable(ui.card):
             ``self``, for chaining.
         """
         self._callbacks.append(callback)
-        self._table.on_selection_change(callback)
+        self._table.on_selection_change(self._forward(callback))
         return self
 
     async def selected_group_indexes(self) -> Tuple[int, ...]:

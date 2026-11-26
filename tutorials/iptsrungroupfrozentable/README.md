@@ -57,6 +57,6 @@ Then open the printed URL (default <http://127.0.0.1:8080>).
   `Start Time`, or `Total Counts` by default). `ID` cannot be used.
 - The page reads the selection through `on_selection_change` and the async
   `selected_group_indexes` and `selected_source_rows` accessors. The callback
-  also runs after every **Load**, when the selection is cleared.
+  also runs after every **Load** of an IPTS number, when the selection is cleared.
 - Group and row indexes are valid only until the next **Load**, because new
   runs move existing rows and groups.

@@ -284,12 +284,15 @@ are ordered by their most recent run.
 
 The columns are those of the [grouped run table](#grouped-run-table): the
 grouping value in the leftmost column, then `First`, `Last`, and `Size`. Select
-groups as described there: click a row, `Ctrl`/`Cmd` + click to add or remove
-individual rows, and `Shift` + click to select a contiguous range.
+groups by clicking a row, `Ctrl`/`Cmd` + click to add or remove individual rows,
+`Shift` + click to select a contiguous range, or `Space` to add or remove the row
+that has the keyboard focus. Move the focus with the arrow keys.
 
-Every **Load** replaces the table and clears the selection, including a reload of
-the same IPTS. The application is told that the selection changed, so what it
-shows for the selected groups is cleared too.
+Every **Load** of an IPTS number replaces the table and clears the selection,
+including a reload of the same IPTS. The application is told that the selection
+changed, so what it shows for the selected groups is cleared too. If the IPTS
+field is empty, **Load** only shows a message and leaves the table and the
+selection as they are.
 
 You must be signed in to ONCat first, usually with the [login card](#oncatlogin)
 on the same page. If the runs cannot be loaded, for example because you are not
@@ -312,23 +315,28 @@ Constructor arguments:
 - `agent` — the authenticated ONCat agent, typically `OncatLogin.agent`. It may
   be disconnected when passed.
 - `group_by` — the label of the processing variable that defines the groups. It
-  must be one of the labels in `processing_variables`. `ID` is reserved and
-  cannot be used.
+  must be one of the labels in `processing_variables`. `ID`, `First`, `Last`,
+  and `Size` are reserved and cannot be used, because the first is the run
+  identifier and the others are columns of the grouped table.
 - `facility` and `instrument` — default to `"SNS"` and `"USANS"`.
 - `processing_variables` — ordered `(display label, ONCat metadata path)` pairs,
   as in `IPTSTable`. The default labels are `Title`, `Start Time`, and
   `Total Counts`.
 
 The constructor raises `ValueError` if `processing_variables` is malformed,
-contains the label `ID` or a repeated label, or `group_by` is not one of its
-labels. All arguments are fixed for the lifetime of the widget.
+contains the label `ID` or a repeated label, `group_by` is a reserved name, or
+`group_by` is not one of its labels. All arguments are fixed for the lifetime of
+the widget.
 
 The widget stores only what must outlive one inner table: the callbacks
 registered with `on_selection_change`. It registers them again on each new inner
-table, and the live selection stays in the grid. After every **Load**, it also
-calls each callback with a selection-changed event, because the new table has no
-selection. A callback that takes no arguments is called without them. Otherwise
-it receives an event whose `sender` is the widget and whose `args` is empty.
+table, and the live selection stays in the grid. After every **Load** of an IPTS
+number, it also calls each callback with a selection-changed event, because the
+new table has no selection. A callback that takes no arguments is called without
+them. Otherwise it receives an event whose `sender` is the widget. This holds for
+every event, whether the user changed the selection or a **Load** cleared it, so
+the inner table is never passed to a callback. After a **Load**, `args` is empty;
+for a change made by the user, `args` holds the arguments that the grid sent.
 
 The members that read the table always use the current inner table. They have the
 names and meanings of `RunGroupFrozenTable`: the properties `rows`, `groups`, and

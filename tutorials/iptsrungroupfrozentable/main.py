@@ -11,11 +11,12 @@ tutorial, it fetches live data, so an ONCat sign-in is required:
 4. Select groups with a click, **Ctrl/Cmd + click**, **Shift + click**, or the
    **Space** key. The caption lists the selected group indexes, and the bottom
    table shows the source runs of the selected groups.
-5. Every **Load**, including a reload of the same IPTS, clears the selection.
+5. Every **Load** of an IPTS number, including a reload of the same IPTS, clears the
+   selection.
 
 The selection is read out via ``IPTSRunGroupFrozenTable.on_selection_change``
 (register a callback) and the async ``selected_group_indexes`` and
-``selected_source_rows`` accessors. The callback also runs after every **Load**.
+``selected_source_rows`` accessors. The callback also runs after every **Load** of an IPTS number.
 """
 
 import argparse
