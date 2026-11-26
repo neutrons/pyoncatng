@@ -129,6 +129,11 @@ class RunTable(ui.aggrid):
             # No column opts into rowDrag, but forbid row dragging explicitly so
             # the row order stays fixed even if a column later enables it.
             "suppressRowDrag": True,
+            # Rows are flat dicts keyed by the column name, so a column name that
+            # contains a dot (such as "motor.readX") is a plain key. Without this
+            # option AG Grid reads the dot as a path into nested data and the
+            # cells of that column are blank.
+            "suppressFieldDotNotation": True,
             # Enable multi-row selection via AG Grid's current object API (the
             # legacy "multiple" string is deprecated as of AG Grid 32.2). AG Grid
             # handles the modifiers itself: plain click selects one row,

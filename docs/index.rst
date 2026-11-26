@@ -10,10 +10,10 @@ of the `pyoncat <https://oncat.ornl.gov/>`_ library.
    :maxdepth: 2
 
    widgets
+   grouping
    tutorials <tutorials>
    getting-started
    testing
-   documentation
-   build-publish-packages
+   build-publish
    license
    indices-and-tables

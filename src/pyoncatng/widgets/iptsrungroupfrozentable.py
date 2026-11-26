@@ -34,14 +34,21 @@ from pyoncatng.widgets.iptstable import (
     ProcessingVariable,
     validate_processing_variables,
 )
-from pyoncatng.widgets.rungroupfrozentable import RESERVED_GROUP_KEYS, Group, Row, RunGroupFrozenTable
+from pyoncatng.widgets.rungroupfrozentable import (
+    Group,
+    Row,
+    RunGroupFrozenTable,
+    validate_group_column,
+    validate_grouping_function,
+)
 
 # -- pure helpers (unit-testable without a UI context) -----------------------
 
 
 def _validate_construction(
     processing_variables: Sequence[ProcessingVariable],
-    group_by: str,
+    grouping_function: Callable[[Row], str],
+    group_column: str,
 ) -> List[ProcessingVariable]:
     """Validate the constructor arguments and return the processing variables.
 
@@ -49,9 +56,11 @@ def _validate_construction(
     ----------
     processing_variables : sequence of (str, str)
         Ordered ``(display label, ONCat metadata path)`` pairs.
-    group_by : str
-        Label of the processing variable that defines the groups. It must not
-        be a name that ``RunGroupFrozenTable`` reserves.
+    grouping_function : Callable[[Mapping[str, Any]], str]
+        Function that returns the group key of a row.
+    group_column : str
+        Name of the first column. It must not be ``"ID"`` or a name that
+        ``RunGroupFrozenTable`` reserves.
 
     Returns
     -------
@@ -62,17 +71,16 @@ def _validate_construction(
     ------
     ValueError
         If a pair is malformed, a label is ``"ID"`` or is repeated,
-        ``group_by`` is one of the names that ``RunGroupFrozenTable`` reserves
-        (``"First"``, ``"Last"``, ``"Size"``, and ``"_group_index"``), or
-        ``group_by`` is not one of the labels. The last rule also excludes
-        ``"ID"`` as ``group_by``.
+        ``grouping_function`` is not callable, or ``group_column`` is empty, is
+        not a string, is ``"ID"``, or is one of the names that
+        ``RunGroupFrozenTable`` reserves (``"First"``, ``"Last"``, ``"Size"``,
+        and ``"_group_index"``).
     """
     validated = validate_processing_variables(processing_variables)
-    labels = [label for label, _ in validated]
-    if group_by in RESERVED_GROUP_KEYS:
-        raise ValueError(f"group_by {group_by!r} is reserved and cannot be used.")
-    if group_by not in labels:
-        raise ValueError(f"group_by {group_by!r} must be one of the processing_variables labels {labels!r}.")
+    validate_grouping_function(grouping_function)
+    validate_group_column(group_column)
+    if group_column == KEY_COLUMN:
+        raise ValueError(f"group_column {group_column!r} is reserved and cannot be used.")
     return validated
 
 
@@ -88,11 +96,17 @@ class IPTSRunGroupFrozenTable(ui.card):
         The authenticated ONCat agent to query, e.g. ``OncatLogin.agent``. It
         may be disconnected when passed; a failed **Load** reports the problem
         in the message area.
-    group_by : str
-        Label of the processing variable that defines the groups. It must be
-        one of the labels in ``processing_variables``. ``"ID"``, ``"First"``,
-        ``"Last"``, and ``"Size"`` are reserved and cannot be used. Runs without
-        a value for the variable form one group.
+    grouping_function : Callable[[Mapping[str, Any]], str]
+        Function that receives the read-only mapping of one run, with the
+        columns of ``processing_variables`` and ``ID``, and returns the key of
+        its group. Use :func:`pyoncatng.by_pv` to group by one column. See
+        :class:`~pyoncatng.widgets.rungroupfrozentable.RunGroupFrozenTable`
+        for how the results are converted. An error in the function, such as a
+        mistyped column in ``by_pv``, is reported by the first **Load**.
+    group_column : str
+        Name of the first column, which shows the key of each group.
+        ``"ID"``, ``"First"``, ``"Last"``, and ``"Size"`` are reserved and
+        cannot be used.
     facility : str, optional
         Facility passed to ``Run.list``. Defaults to ``"SNS"``.
     instrument : str, optional
@@ -107,8 +121,8 @@ class IPTSRunGroupFrozenTable(ui.card):
     ------
     ValueError
         If ``processing_variables`` is malformed, contains the label ``"ID"``
-        or a repeated label, ``group_by`` is a reserved name, or ``group_by``
-        is not one of its labels.
+        or a repeated label, ``grouping_function`` is not callable, or
+        ``group_column`` is empty or a reserved name.
 
     Notes
     -----
@@ -125,23 +139,25 @@ class IPTSRunGroupFrozenTable(ui.card):
     -------
     .. code-block:: python
 
-        IPTSRunGroupFrozenTable(agent=login.agent, group_by="Title")
+        IPTSRunGroupFrozenTable(agent=login.agent, grouping_function=by_pv("Title"), group_column="Title")
     """
 
     def __init__(
         self,
         agent: pyoncat.ONCat,
         *,
-        group_by: str,
+        grouping_function: Callable[[Row], str],
+        group_column: str,
         facility: str = "SNS",
         instrument: str = "USANS",
         processing_variables: Sequence[ProcessingVariable] = DEFAULT_PROCESSING_VARIABLES,
     ) -> None:
-        processing_variables = _validate_construction(processing_variables, group_by)
+        processing_variables = _validate_construction(processing_variables, grouping_function, group_column)
 
         super().__init__()
         self._agent = agent
-        self._group_by = group_by
+        self._grouping_function = grouping_function
+        self._group_column = group_column
         self._facility = facility
         self._instrument = instrument
         self._processing_variables = processing_variables
@@ -200,9 +216,11 @@ class IPTSRunGroupFrozenTable(ui.card):
         self._container.clear()
         with self._container:
             if rows:
-                self._table = RunGroupFrozenTable(rows=rows, group_by=self._group_by, run_idkey=KEY_COLUMN)
+                self._table = RunGroupFrozenTable(
+                    rows=rows, grouping_function=self._grouping_function, group_column=self._group_column
+                )
             else:
-                self._table = RunGroupFrozenTable.empty(group_by=self._group_by, run_idkey=KEY_COLUMN)
+                self._table = RunGroupFrozenTable.empty(group_column=self._group_column)
             self._table.style("flex: 1 1 auto")
         for callback in self._callbacks:
             self._table.on_selection_change(self._forward(callback))
@@ -307,6 +325,16 @@ class IPTSRunGroupFrozenTable(ui.card):
         return self._table.groups
 
     @property
-    def group_by(self) -> str:
-        """The label of the processing variable that defines the groups."""
-        return self._group_by
+    def group_keys(self) -> Tuple[str, ...]:
+        """The key of each group, aligned with :attr:`groups`."""
+        return self._table.group_keys
+
+    @property
+    def grouping_function(self) -> Callable[[Row], str]:
+        """The function that returns the group key of a row."""
+        return self._grouping_function
+
+    @property
+    def group_column(self) -> str:
+        """The name of the first column."""
+        return self._group_column

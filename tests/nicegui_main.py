@@ -9,6 +9,7 @@ request time, so a test can patch the agent before opening a page.
 from fakes import FakeAgent
 from nicegui import ui
 
+from pyoncatng import by_pv
 from pyoncatng.widgets.iptsrungroupfrozentable import IPTSRunGroupFrozenTable
 from pyoncatng.widgets.iptstable import IPTSTable
 from pyoncatng.widgets.login import OncatLogin
@@ -173,13 +174,13 @@ RUNGROUP_ROWS = [
 
 @ui.page("/rungroupfrozentable")
 def rungroupfrozentable_page() -> None:
-    RunGroupFrozenTable(rows=RUNGROUP_ROWS, group_by="Title")
+    RunGroupFrozenTable(rows=RUNGROUP_ROWS, grouping_function=by_pv("Title"), group_column="Title")
 
 
 @ui.page("/rungroupfrozentable-empty")
 def rungroupfrozentable_empty_page() -> None:
     try:
-        RunGroupFrozenTable(rows=[], group_by="Title")
+        RunGroupFrozenTable(rows=[], grouping_function=by_pv("Title"), group_column="Title")
     except ValueError as error:
         ui.label(f"error: {error}")
 
@@ -188,7 +189,7 @@ def rungroupfrozentable_empty_page() -> None:
 def iptsrungroupfrozentable_page() -> None:
     # Tests reach the fake agent via the widget element
     # (``IPTSRunGroupFrozenTable._agent``) to script ``Run.list`` before Load.
-    IPTSRunGroupFrozenTable(agent=FakeAgent(), group_by="Title")
+    IPTSRunGroupFrozenTable(agent=FakeAgent(), grouping_function=by_pv("Title"), group_column="Title")
 
 
 if __name__ in {"__main__", "__mp_main__"}:

@@ -23,6 +23,7 @@ import argparse
 import argcomplete
 from nicegui import ui
 
+from pyoncatng import by_pv
 from pyoncatng.widgets.rungroupfrozentable import RunGroupFrozenTable
 from pyoncatng.widgets.runtable import RunTable
 
@@ -68,7 +69,9 @@ def index() -> None:
             "it, **Ctrl/Cmd + click** to toggle rows, and **Shift + click** to select a "
             "range. The source runs of the selected groups appear in the table below."
         )
-        groups = RunGroupFrozenTable(rows=_sample_rows(), group_by="Title").style("height: 320px")
+        groups = RunGroupFrozenTable(rows=_sample_rows(), grouping_function=by_pv("Title"), group_column="Title").style(
+            "height: 320px"
+        )
 
         selection_label = ui.label("No groups selected.").classes("text-caption")
         sources = RunTable(columns=SOURCE_COLUMNS, rows=[], key_column="ID").style("height: 300px")
