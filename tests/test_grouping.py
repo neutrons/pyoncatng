@@ -51,7 +51,10 @@ def test_by_pv_names_the_returned_function():
     assert by_pv("Title").__qualname__ == "by_pv('Title')"
 
 
-def test_importing_the_package_does_not_load_nicegui():
-    code = "import sys, pyoncatng; sys.exit('nicegui' in sys.modules)"
+def test_importing_the_package_does_not_load_nicegui_or_the_widgets():
+    code = (
+        "import sys, pyoncatng; from pyoncatng import by_pv; "
+        "sys.exit('nicegui' in sys.modules or 'pyoncatng.widgets' in sys.modules)"
+    )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
