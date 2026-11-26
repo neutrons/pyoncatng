@@ -20,8 +20,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 import pyoncat
 from nicegui import ui
 
-from ..core.runs import list_runs
-from .runtable import RunTable
+from pyoncatng.core.runs import list_runs
+from pyoncatng.widgets.runtable import RunTable
 
 # Ordered ``(display column, run path)`` pairs backing the table. A ``None`` path
 # means the run's own ``id`` (the run number). The other columns read the raw
@@ -49,10 +49,29 @@ KEY_COLUMN = "ID"
 Row = Dict[str, Any]
 
 
-def _validate_processing_variables(
+def validate_processing_variables(
     processing_variables: Sequence[ProcessingVariable],
 ) -> List[ProcessingVariable]:
-    """Copy and validate constructor processing-variable pairs."""
+    """Copy and validate the processing-variable pairs of a table constructor.
+
+    Parameters
+    ----------
+    processing_variables : sequence of (str, str)
+        Ordered ``(display label, ONCat metadata path)`` pairs.
+
+    Returns
+    -------
+    list of (str, str)
+        The pairs, with leading and trailing whitespace removed from each label
+        and path.
+
+    Raises
+    ------
+    ValueError
+        If ``processing_variables`` is not iterable, an item is not a pair of
+        non-empty strings, a label is ``"ID"`` (which the table adds as the run
+        identifier), or a label is repeated.
+    """
     try:
         values = list(processing_variables)
     except TypeError as error:
@@ -76,6 +95,11 @@ def _validate_processing_variables(
                 f"processing_variables[{index}] must be a (label, path) pair of non-empty strings, got {value!r}."
             )
         validated.append((label, path))
+    labels = [label for label, _ in validated]
+    if KEY_COLUMN in labels:
+        raise ValueError(f"{KEY_COLUMN!r} is reserved")
+    if len(labels) != len(set(labels)):
+        raise ValueError("processing_variables labels must be unique")
     return validated
 
 
@@ -122,12 +146,7 @@ class IPTSTable(ui.card):
         instrument: str = "USANS",
         processing_variables: Sequence[ProcessingVariable] = DEFAULT_PROCESSING_VARIABLES,
     ) -> None:
-        processing_variables = _validate_processing_variables(processing_variables)
-        labels = [label for label, _ in processing_variables]
-        if KEY_COLUMN in labels:
-            raise ValueError(f"{KEY_COLUMN!r} is reserved")
-        if len(labels) != len(set(labels)):
-            raise ValueError("processing_variables labels must be unique")
+        processing_variables = validate_processing_variables(processing_variables)
 
         super().__init__()
         self._agent = agent

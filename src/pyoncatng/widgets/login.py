@@ -31,9 +31,9 @@ from typing import Callable, List, Optional
 import pyoncat
 from nicegui import app, ui
 
-from ..configuration import get_data
-from ..core.client import SESSION_CONNECTED, SESSION_UNREACHABLE
-from ..core.service import LoginService
+from pyoncatng.configuration import get_data
+from pyoncatng.core.client import SESSION_CONNECTED, SESSION_UNREACHABLE
+from pyoncatng.core.service import LoginService
 
 logger = logging.getLogger("PYONCATNG")
 

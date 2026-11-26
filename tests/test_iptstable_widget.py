@@ -11,9 +11,10 @@ Two layers (mirroring ``test_runtable_widget.py``):
   visible to the simulation) or the inline message text.
 """
 
+import pytest
 from nicegui.testing import User
 
-from pyoncatng.widgets.iptstable import COLUMN_SPEC, IPTSTable
+from pyoncatng.widgets.iptstable import COLUMN_SPEC, IPTSTable, validate_processing_variables
 from pyoncatng.widgets.runtable import RunTable
 
 # A sample run as returned by ONCat with a flat, dot-path projection (which is
@@ -81,6 +82,21 @@ def test_rows_from_runs_maps_id_and_paths() -> None:
 def test_rows_from_runs_missing_path_is_none() -> None:
     rows = IPTSTable.rows_from_runs([{"id": 7}])
     assert rows == [{"ID": 7, "Title": None, "Start Time": None, "Total Counts": None}]
+
+
+def test_validate_processing_variables_strips_and_copies() -> None:
+    pairs = [(" Title ", " datafiles.raw.metadata.entry.title ")]
+    assert validate_processing_variables(pairs) == [("Title", "datafiles.raw.metadata.entry.title")]
+
+
+def test_validate_processing_variables_rejects_the_id_label() -> None:
+    with pytest.raises(ValueError, match="'ID' is reserved"):
+        validate_processing_variables([("ID", "some.path")])
+
+
+def test_validate_processing_variables_rejects_repeated_labels() -> None:
+    with pytest.raises(ValueError, match="labels must be unique"):
+        validate_processing_variables([("Title", "a.path"), ("Title", "b.path")])
 
 
 def test_key_column_is_first_in_spec() -> None:
