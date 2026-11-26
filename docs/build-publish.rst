@@ -2,7 +2,7 @@
 Build & Publish
 =================
 
-All the steps below are defined as Pixi tasks in ``pyproject.toml``.
+The documentation steps below are defined as Pixi tasks in ``pyproject.toml``.
 
 Building the Documentation Locally
 ==================================
@@ -31,31 +31,14 @@ installs Pixi, runs ``pixi install``, and then builds the HTML pages with
 ``sphinx-build -T -b html docs``. This is the command behind ``pixi run
 build-docs``, so a local build previews what is published.
 
-Building Packages
-=================
+Building and Publishing Packages
+================================
 
-Conda packages are supported. Build one with:
-
-.. code-block:: bash
-
-   pixi run conda-build
-
-The task takes the version from the Git tags and builds the package into the
-``local-channel`` directory. It restores ``pyproject.toml`` afterwards.
-
-Publishing Packages
-===================
-
-Conda packages are published to the `anaconda.org/neutrons
-<https://anaconda.org/neutrons>`_ organization. To publish a package from your
-machine, which requires permission to upload to the organization, run:
-
-.. code-block:: bash
-
-   pixi run conda-publish
-
-The task builds the package and then uploads the ``.conda`` files of the repository
-root. The GitHub workflow
-``.github/workflows/test_and_deploy.yaml`` builds and verifies the package for
-every pull request, and it uploads the package after the tests pass when a commit
-is pushed to the ``next`` branch or a tag that starts with ``v`` is pushed.
+Conda packages are built and published by the GitHub workflow
+``.github/workflows/test_and_deploy.yaml``, so there is no need to build or
+publish them by hand. For every pull request, the workflow builds the package
+and verifies that it installs and imports. When a commit is pushed to the
+``next`` branch, or a tag that starts with ``v`` is pushed, and the tests pass,
+the workflow uploads the package to the `anaconda.org/neutrons
+<https://anaconda.org/neutrons>`_ organization. The version of the package comes
+from the Git tags.
