@@ -14,7 +14,6 @@ of the `pyoncat <https://oncat.ornl.gov/>`_ library.
    tutorials <tutorials>
    getting-started
    testing
-   documentation
-   build-publish-packages
+   build-publish
    license
    indices-and-tables
