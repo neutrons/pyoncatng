@@ -81,7 +81,9 @@ rows cannot be dragged, so the runs keep the order the application gave them.
 scope for the widget: a caller builds the ordered list of column names and the
 rows (a list of per-run dicts keyed by processing-variable name) and passes
 them to the constructor. The column name, header label, and row-dict key are
-all the same string. The `key_column` (`run_number` by default) is locked to
+all the same string. Each row is a flat dict, so a column name that contains a
+dot, such as `motor.readX`, is a plain key of the row, not a path into nested
+data. The `key_column` (`run_number` by default) is locked to
 the leftmost position and must be one of the columns. `set_rows` replaces the
 displayed rows, keeping their order.
 
@@ -297,7 +299,7 @@ one group whose leftmost cell is blank. The groups are ordered by their most
 recent run.
 
 The columns are those of the [grouped run table](#grouped-run-table): the
-grouping value in the leftmost column, then `First`, `Last`, and `Size`. Select
+group key in the leftmost column, then `First`, `Last`, and `Size`. Select
 groups by clicking a row, `Ctrl`/`Cmd` + click to add or remove individual rows,
 `Shift` + click to select a contiguous range, or `Space` to add or remove the row
 that has the keyboard focus. Move the focus with the arrow keys.

@@ -61,8 +61,10 @@ Grouping by a Computed Value
 ============================
 
 A grouping function can compute the key from the run in any way. It receives the
-run as a read-only mapping, with one entry per column of the table, and returns
-the key. This function groups the runs by the first word of the title, so that
+run as a read-only mapping and returns the key. In the IPTS table, the mapping
+holds ``ID`` and one entry per processing variable. In ``RunGroupFrozenTable``,
+it holds the keys of the run dictionary. It does not hold ``First``, ``Last``, or
+``Size``, which the table computes for each group. This function groups the runs by the first word of the title, so that
 ``Sample X 25C`` and ``Sample X 50C`` fall in one group called ``Sample``:
 
 .. code-block:: python
@@ -93,11 +95,11 @@ function can be tried without a table:
 The Group Column and Group Keys
 ===============================
 
-``group_column`` represents the value returned by the grouping function, for instance, ``"Title"``.
+``group_column`` is the header of the column that shows the value returned by the grouping function, for instance, ``"Title"``.
 It can be any text, and it does not have to match the variable that
 the function reads. For instance, ``by_pv("Title")`` with ``group_column="Sample"`` is accepted,
 and the column storing the titles is then headed ``Sample``. It cannot be ``First``, ``Last``,
-``Size``, or ``_group_index``, which the reserved names that table uses itself. The IPTS table does
+``Size``, or ``_group_index``, which are reserved because the table uses them itself. The IPTS table does
 not accept ``ID`` either.
 
 The table also offers ``group_keys``, the key of each group in the order of the

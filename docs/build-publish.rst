@@ -28,8 +28,8 @@ The published documentation at `pyoncatng.readthedocs.io
 <https://pyoncatng.readthedocs.io/>`_ is built by `Read the Docs
 <https://readthedocs.org/>`_ with the configuration in ``.readthedocs.yaml``. It
 installs Pixi, runs ``pixi install``, and then builds the HTML pages with
-``sphinx-build -T -b html docs``. This is the command behind ``pixi run
-build-docs``, so a local build previews what is published.
+``sphinx-build -T -b html docs``. This is essentially the command behind ``pixi
+run build-docs``, so a local build previews what is published.
 
 Building and Publishing Packages
 ================================
@@ -40,5 +40,8 @@ publish them by hand. For every pull request, the workflow builds the package
 and verifies that it installs and imports. When a commit is pushed to the
 ``next`` branch, or a tag that starts with ``v`` is pushed, and the tests pass,
 the workflow uploads the package to the `anaconda.org/neutrons
-<https://anaconda.org/neutrons>`_ organization. The version of the package comes
-from the Git tags.
+<https://anaconda.org/neutrons>`_ organization. The channel label depends on
+what was pushed: commits to ``next`` go to the ``dev`` label, tags such as
+``v1.2rc1`` go to the ``rc`` label, and other ``v`` tags go to the ``main``
+label. Install a development build with ``-c neutrons/label/dev``. The version
+of the package comes from the Git tags.
