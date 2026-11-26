@@ -15,6 +15,7 @@ from nicegui import context
 from nicegui.events import GenericEventArguments
 from nicegui.testing import User
 
+from pyoncatng import by_pv
 from pyoncatng.widgets.iptsrungroupfrozentable import IPTSRunGroupFrozenTable, _validate_construction
 from pyoncatng.widgets.iptstable import DEFAULT_PROCESSING_VARIABLES, IPTSTable
 from pyoncatng.widgets.rungroupfrozentable import GROUP_INDEX_KEY, RESERVED_GROUP_KEYS, RunGroupFrozenTable
@@ -22,6 +23,9 @@ from pyoncatng.widgets.runtable import RunTable
 
 TITLE = ("Title", "datafiles.raw.metadata.entry.title")
 START = ("Start Time", "datafiles.raw.metadata.entry.start_time")
+BY_TITLE = by_pv("Title")
+# A deliberately mistyped variable name.
+MISTYPED_TITLE = "Titel"  # codespell:ignore
 
 # Runs as ONCat returns them (newest first) with a flat, dot-path projection.
 # Title "A" is repeated at indexes 0, 1, and 3, and is not adjacent.
@@ -41,50 +45,59 @@ RUNS_OTHER = [
 
 
 def test_valid_construction_returns_pairs() -> None:
-    assert _validate_construction([TITLE, [" Start Time ", " datafiles.raw.metadata.entry.start_time "]], "Title") == [
+    assert _validate_construction(
+        [TITLE, [" Start Time ", " datafiles.raw.metadata.entry.start_time "]], BY_TITLE, "Title"
+    ) == [
         TITLE,
         START,
     ]
 
 
 def test_default_processing_variables_accept_title() -> None:
-    assert _validate_construction(DEFAULT_PROCESSING_VARIABLES, "Title") == list(DEFAULT_PROCESSING_VARIABLES)
+    assert _validate_construction(DEFAULT_PROCESSING_VARIABLES, BY_TITLE, "Title") == list(DEFAULT_PROCESSING_VARIABLES)
 
 
-def test_group_by_must_be_a_label() -> None:
-    with pytest.raises(ValueError, match="must be one of the processing_variables labels"):
-        _validate_construction([TITLE, START], "Sample")
+def test_group_column_need_not_be_a_label() -> None:
+    assert _validate_construction([TITLE, START], BY_TITLE, "Sample") == [TITLE, START]
 
 
-def test_group_by_id_is_rejected() -> None:
-    with pytest.raises(ValueError, match="must be one of the processing_variables labels"):
-        _validate_construction([TITLE], "ID")
+def test_group_column_id_is_rejected() -> None:
+    with pytest.raises(ValueError, match="'ID' is reserved"):
+        _validate_construction([TITLE], BY_TITLE, "ID")
 
 
-@pytest.mark.parametrize("group_by", sorted(RESERVED_GROUP_KEYS))
-def test_reserved_group_by_is_rejected(group_by: str) -> None:
+@pytest.mark.parametrize("group_column", sorted(RESERVED_GROUP_KEYS))
+def test_reserved_group_column_is_rejected(group_column: str) -> None:
     with pytest.raises(ValueError, match="is reserved"):
-        _validate_construction([TITLE, (group_by, "datafiles.raw.metadata.entry.other")], group_by)
+        _validate_construction([TITLE, (group_column, "datafiles.raw.metadata.entry.other")], BY_TITLE, group_column)
 
 
-def test_reserved_label_is_accepted_when_it_is_not_group_by() -> None:
-    assert _validate_construction([TITLE, ("Size", "datafiles.raw.metadata.entry.size")], "Title")[1][0] == "Size"
+def test_grouping_function_must_be_callable() -> None:
+    with pytest.raises(ValueError, match="must be callable"):
+        _validate_construction([TITLE], "Title", "Title")
+
+
+def test_reserved_label_is_accepted_when_it_is_not_the_group_column() -> None:
+    assert (
+        _validate_construction([TITLE, ("Size", "datafiles.raw.metadata.entry.size")], BY_TITLE, "Title")[1][0]
+        == "Size"
+    )
 
 
 def test_id_label_is_rejected() -> None:
     with pytest.raises(ValueError, match="'ID' is reserved"):
-        _validate_construction([TITLE, ("ID", "datafiles.raw.metadata.entry.id")], "Title")
+        _validate_construction([TITLE, ("ID", "datafiles.raw.metadata.entry.id")], BY_TITLE, "Title")
 
 
 def test_duplicate_labels_are_rejected() -> None:
     with pytest.raises(ValueError, match="labels must be unique"):
-        _validate_construction([TITLE, ("Title", "other.path")], "Title")
+        _validate_construction([TITLE, ("Title", "other.path")], BY_TITLE, "Title")
 
 
 @pytest.mark.parametrize("value", [("Title",), ("Title", ""), ("Title", 1), "ab", None])
 def test_malformed_pair_is_rejected(value) -> None:
     with pytest.raises(ValueError, match="must be a .label, path. pair"):
-        _validate_construction([value], "Title")
+        _validate_construction([value], BY_TITLE, "Title")
 
 
 # -- widget tests: live element via the user simulation -----------------------
@@ -450,20 +463,68 @@ async def test_accessors_reflect_the_latest_load(user: User) -> None:
     assert [row["ID"] for row in widget.rows] == [130, 128, 129]
     assert widget.groups == ((0, 1), (2,))
     assert [row["ID"] for row in widget.rows_for_group(1)] == [129]
-    assert widget.group_by == "Title"
+    assert widget.group_column == "Title"
+    assert widget.group_keys == ("A", "B")
+    assert widget.grouping_function.__qualname__ == "by_pv('Title')"
 
 
-async def test_reserved_group_by_leaves_no_partial_widget(user: User) -> None:
+async def test_reserved_group_column_leaves_no_partial_widget(user: User) -> None:
     await user.open("/iptsrungroupfrozentable")
     widget = _widget(user)
     before = len(user.find(IPTSRunGroupFrozenTable).elements)
 
     with user, pytest.raises(ValueError, match="is reserved"):
         IPTSRunGroupFrozenTable(
-            agent=widget._agent, group_by="Size", processing_variables=[("Size", "datafiles.raw.metadata.entry.size")]
+            agent=widget._agent,
+            grouping_function=by_pv("Size"),
+            group_column="Size",
+            processing_variables=[("Size", "datafiles.raw.metadata.entry.size")],
         )
 
     assert len(user.find(IPTSRunGroupFrozenTable).elements) == before
+
+
+async def test_a_custom_function_groups_the_runs(user: User) -> None:
+    await user.open("/iptsrungroupfrozentable")
+    runs = [
+        {"id": 3, "datafiles.raw.metadata.entry.title": "Sample X 1"},
+        {"id": 2, "datafiles.raw.metadata.entry.title": "Sample X 2"},
+        {"id": 1, "datafiles.raw.metadata.entry.title": "Blank 1"},
+    ]
+    with user:
+        widget = IPTSRunGroupFrozenTable(
+            agent=_widget(user)._agent,
+            grouping_function=lambda row: row["Title"].split()[0],
+            group_column="Sample",
+        )
+    await _load(widget, runs)
+
+    assert widget.groups == ((0, 1), (2,))
+    assert widget.group_keys == ("Sample", "Blank")
+    assert [row["Sample"] for row in widget._table._table.options["rowData"]] == ["Sample", "Blank"]
+
+
+async def test_runs_without_a_title_form_one_group_with_a_blank_key(user: User) -> None:
+    await user.open("/iptsrungroupfrozentable")
+    widget = _widget(user)
+    await _load(widget, [RUNS[0], {"id": 126}, {"id": 125}])
+
+    assert widget.groups == ((0,), (1, 2))
+    assert widget.group_keys == ("A", "")
+    assert _inner(user)._table.options["rowData"][1]["Title"] == ""
+
+
+async def test_a_mistyped_variable_is_reported_by_the_load(user: User) -> None:
+    await user.open("/iptsrungroupfrozentable")
+    with user:
+        widget = IPTSRunGroupFrozenTable(
+            agent=_widget(user)._agent, grouping_function=by_pv(MISTYPED_TITLE), group_column=MISTYPED_TITLE
+        )
+    await _load(widget)
+
+    assert widget.groups == ()
+    for text in ("Could not load runs for IPTS-24703:", "rows[0]", f"'{MISTYPED_TITLE}'"):
+        assert text in widget._message.text
 
 
 async def test_container_and_inner_table_grow_with_the_widget(user: User) -> None:

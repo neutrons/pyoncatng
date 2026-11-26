@@ -189,7 +189,7 @@ def rungroupfrozentable_empty_page() -> None:
 def iptsrungroupfrozentable_page() -> None:
     # Tests reach the fake agent via the widget element
     # (``IPTSRunGroupFrozenTable._agent``) to script ``Run.list`` before Load.
-    IPTSRunGroupFrozenTable(agent=FakeAgent(), group_by="Title")
+    IPTSRunGroupFrozenTable(agent=FakeAgent(), grouping_function=by_pv("Title"), group_column="Title")
 
 
 if __name__ in {"__main__", "__mp_main__"}:
