@@ -26,6 +26,7 @@ import pyoncat
 from nicegui import ui
 from nicegui.events import GenericEventArguments, handle_event
 
+from pyoncatng.core.grouping import by_pv
 from pyoncatng.core.runs import list_runs
 from pyoncatng.widgets.iptstable import (
     DEFAULT_PROCESSING_VARIABLES,
@@ -200,9 +201,11 @@ class IPTSRunGroupFrozenTable(ui.card):
         self._container.clear()
         with self._container:
             if rows:
-                self._table = RunGroupFrozenTable(rows=rows, group_by=self._group_by, run_idkey=KEY_COLUMN)
+                self._table = RunGroupFrozenTable(
+                    rows=rows, grouping_function=by_pv(self._group_by), group_column=self._group_by
+                )
             else:
-                self._table = RunGroupFrozenTable.empty(group_by=self._group_by, run_idkey=KEY_COLUMN)
+                self._table = RunGroupFrozenTable.empty(group_column=self._group_by)
             self._table.style("flex: 1 1 auto")
         for callback in self._callbacks:
             self._table.on_selection_change(self._forward(callback))

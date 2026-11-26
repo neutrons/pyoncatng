@@ -525,22 +525,3 @@ async def test_callbacks_fire_after_a_failed_load_and_a_load_without_runs(user: 
 
     assert len(events) == 2
     assert all(event.sender is widget and event.args == {} for event in events)
-
-
-async def test_data_rejected_by_the_inner_table_is_reported_as_a_failed_load(user: User) -> None:
-    await user.open("/iptsrungroupfrozentable")
-    widget = _widget(user)
-    calls: list = []
-    widget.on_selection_change(lambda: calls.append("event"))
-    await _load(widget)
-    assert widget.groups == ((0, 1, 3), (2,))
-
-    # A dict-valued title becomes an unhashable read-only mapping, which the inner table rejects.
-    await _load(widget, [{"id": 1, "datafiles.raw.metadata.entry.title": {"unhashable": "title"}}])
-
-    assert widget.rows == ()
-    assert widget.groups == ()
-    assert "Could not load runs for IPTS-24703:" in widget._message.text
-    assert "must be hashable" in widget._message.text
-    # The failed replacement sends exactly one event, not one per attempt to build a table.
-    assert calls == ["event", "event"]

@@ -1,8 +1,8 @@
 """A read-only NiceGUI table that shows one row per group of ONCat runs.
 
-``RunGroupFrozenTable`` groups run dictionaries by a configurable key and
-displays one summary row per group, with the columns ``[group_by, "First",
-"Last", "Size"]``. It is a :class:`nicegui.ui.card` that holds a private
+``RunGroupFrozenTable`` groups run dictionaries by the value of a grouping
+function of each row and displays one summary row per group, with the columns
+``[group_column, "First", "Last", "Size"]``. It is a :class:`nicegui.ui.card` that holds a private
 :class:`~pyoncatng.widgets.runtable.RunTable` (composition, as in
 ``IPTSTable``), so the grid keeps every ``RunTable`` interaction rule (read-only
 cells, locked first column, movable remaining columns, no row sorting, no row
@@ -15,28 +15,31 @@ The widget cannot be changed after it is created:
   mapping (:class:`types.MappingProxyType`). Nested dicts become read-only
   mappings and nested lists become tuples.
 * ``groups`` is a tuple of tuples of indexes into ``rows``.
-* ``rows``, ``groups``, ``group_by``, and ``run_idkey`` are read-only properties.
+* ``group_keys`` is the tuple of group keys, aligned with ``groups``.
+* ``rows``, ``groups``, ``group_keys``, ``grouping_function``, ``group_column``,
+  and ``run_idkey`` are read-only properties.
 
 The selection accessors read ``"_group_index"`` from the selected grid rows and
 then return values from ``groups`` and ``rows``, never from the grid's row data.
 
 The constructor rejects empty ``rows``, so that an empty list passed by mistake is
-reported. ``RunGroupFrozenTable.empty(group_by=...)`` creates a table with the
+reported. ``RunGroupFrozenTable.empty(group_column=...)`` creates a table with the
 column headers and no rows for the cases where an empty table is intended.
 """
 
 import copy
 from types import MappingProxyType
-from typing import Any, Callable, Dict, Hashable, List, Mapping, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 from nicegui import ui
 
+from pyoncatng.core.grouping import Row, _as_group_key
 from pyoncatng.widgets.runtable import RunTable
 
 # Default run-dict key holding the run ID, used for the First and Last columns.
 DEFAULT_RUN_IDKEY = "ID"
 
-# Summary columns that follow the group_by column, in display order.
+# Summary columns that follow the group column, in display order.
 SUMMARY_COLUMNS = ["First", "Last", "Size"]
 
 # Hidden row-data field holding the index of a visible row's group in `groups`.
@@ -46,7 +49,6 @@ GROUP_INDEX_KEY = "_group_index"
 # the widget or reserved for its internal row data.
 RESERVED_GROUP_KEYS = frozenset((*SUMMARY_COLUMNS, GROUP_INDEX_KEY))
 
-Row = Mapping[str, Any]
 Group = Tuple[int, ...]
 
 
@@ -115,9 +117,71 @@ def run_id(row: Row, run_idkey: str) -> int:
     raise ValueError(f"run ID {run_idkey!r} must be an int or a str that int() accepts, got {value!r}.")
 
 
+def validate_group_column(group_column: str) -> None:
+    """Check the name of the first column.
+
+    Parameters
+    ----------
+    group_column : str
+        Name of the first column. It shares the grid row with the summary columns and the hidden group index, so it
+        must not be one of their names.
+
+    Raises
+    ------
+    ValueError
+        If ``group_column`` is not a non-empty string or is reserved.
+    """
+    if not isinstance(group_column, str) or not group_column:
+        raise ValueError(f"group_column must be a non-empty string, got {group_column!r}.")
+    if group_column in RESERVED_GROUP_KEYS:
+        raise ValueError(f"group_column {group_column!r} is reserved and cannot be used.")
+
+
+def validate_grouping_function(grouping_function: Callable[[Row], str]) -> None:
+    """Check that ``grouping_function`` is callable.
+
+    Raises
+    ------
+    ValueError
+        If ``grouping_function`` is not callable.
+    """
+    if not callable(grouping_function):
+        raise ValueError(f"grouping_function must be callable, got {grouping_function!r}.")
+
+
+def compute_group_keys(rows: Sequence[Row], grouping_function: Callable[[Row], str]) -> Tuple[str, ...]:
+    """Call ``grouping_function`` once per row and convert each result to a group key.
+
+    Parameters
+    ----------
+    rows : Sequence[Mapping[str, Any]]
+        The run dictionaries to group.
+    grouping_function : Callable[[Mapping[str, Any]], str]
+        Function that returns the key of the group of a row. ``None`` becomes ``""`` and any other value that is not
+        a string goes through ``str()``.
+
+    Returns
+    -------
+    tuple of str
+        One key per row, in the order of ``rows``.
+
+    Raises
+    ------
+    ValueError
+        If ``grouping_function`` raises for a row. The message names the row index, and the original error is the
+        cause.
+    """
+    keys: List[str] = []
+    for index, row in enumerate(rows):
+        try:
+            keys.append(_as_group_key(grouping_function(row)))
+        except Exception as error:
+            raise ValueError(f"grouping_function failed for rows[{index}]: {error!r}") from error
+    return tuple(keys)
+
+
 def validate_rows(
     rows: Sequence[Row],
-    group_by: str,
     run_idkey: str = DEFAULT_RUN_IDKEY,
     *,
     allow_empty: bool = False,
@@ -128,64 +192,48 @@ def validate_rows(
     ----------
     rows : Sequence[Mapping[str, Any]]
         The run dictionaries to check.
-    group_by : str
-        Key every row must contain, with a hashable value.
     run_idkey : str, optional
         Key every row must contain, with a valid run ID. Defaults to ``"ID"``.
     allow_empty : bool, optional
-        If true, empty ``rows`` are accepted. The other rules still apply, so a
-        reserved ``group_by`` is rejected. Defaults to false. Only
-        :meth:`RunGroupFrozenTable.empty` sets it.
+        If true, empty ``rows`` are accepted. Defaults to false. Only :meth:`RunGroupFrozenTable.empty` sets it.
 
     Raises
     ------
     ValueError
-        If ``rows`` is empty and ``allow_empty`` is false, a row is missing
-        ``group_by``, a ``group_by`` value is not hashable or ``group_by`` is
-        reserved, or a run ID is missing or not convertible to ``int``.
+        If ``rows`` is empty and ``allow_empty`` is false, or a run ID is missing or not convertible to ``int``.
     """
     if len(rows) == 0 and not allow_empty:
         raise ValueError("rows must not be empty.")
-    if group_by in RESERVED_GROUP_KEYS:
-        raise ValueError(f"group_by {group_by!r} is reserved and cannot be used.")
-    for index, row in enumerate(rows):
-        if group_by not in row:
-            raise ValueError(f"rows[{index}] is missing the group_by key {group_by!r}.")
-        value = row[group_by]
-        try:
-            hash(value)
-        except TypeError as error:
-            raise ValueError(f"rows[{index}][{group_by!r}] must be hashable, got {value!r}.") from error
+    for row in rows:
         run_id(row, run_idkey)
 
 
-def build_groups(rows: Sequence[Row], group_by: str) -> Tuple[Group, ...]:
-    """Group the indexes of ``rows`` by exact equality of ``row[group_by]``.
+def build_groups(keys: Sequence[str]) -> Tuple[Tuple[Group, ...], Tuple[str, ...]]:
+    """Group the row indexes by exact equality of their keys.
 
     Parameters
     ----------
-    rows : Sequence[Mapping[str, Any]]
-        The run dictionaries to group. Each must contain ``group_by`` with a
-        hashable value.
-    group_by : str
-        Key whose values define the groups.
+    keys : Sequence[str]
+        The group key of each row, as returned by :func:`compute_group_keys`.
 
     Returns
     -------
-    tuple of tuple of int
-        One tuple of ascending indexes into ``rows`` per group. Groups are
-        ordered by the first occurrence of their value in ``rows``.
+    groups : tuple of tuple of int
+        One tuple of ascending row indexes per group. Groups are ordered by the first occurrence of their key.
+    group_keys : tuple of str
+        The key of each group, aligned with ``groups``.
     """
-    indexes: Dict[Hashable, List[int]] = {}
-    for index, row in enumerate(rows):
-        indexes.setdefault(row[group_by], []).append(index)
-    return tuple(tuple(members) for members in indexes.values())
+    indexes: Dict[str, List[int]] = {}
+    for index, key in enumerate(keys):
+        indexes.setdefault(key, []).append(index)
+    return tuple(tuple(members) for members in indexes.values()), tuple(indexes)
 
 
 def build_group_rows(
     rows: Sequence[Row],
     groups: Sequence[Group],
-    group_by: str,
+    group_keys: Sequence[str],
+    group_column: str,
     run_idkey: str = DEFAULT_RUN_IDKEY,
 ) -> List[Dict[str, Any]]:
     """Build one visible grid row per group.
@@ -196,17 +244,18 @@ def build_group_rows(
         The run dictionaries that ``groups`` indexes into.
     groups : Sequence[tuple of int]
         Groups of indexes into ``rows``, as returned by :func:`build_groups`.
-    group_by : str
-        Key whose value is shown in the first column.
+    group_keys : Sequence[str]
+        The key of each group, aligned with ``groups``.
+    group_column : str
+        Name of the first column, which shows the key of the group.
     run_idkey : str, optional
         Key holding the run ID. Defaults to ``"ID"``.
 
     Returns
     -------
     list of dict
-        One dict per group, in the order of ``groups``, holding the group's
-        ``group_by`` value, ``"First"`` and ``"Last"`` (the smallest and largest
-        run IDs, cast to ``int``), ``"Size"`` (the number of rows in the
+        One dict per group, in the order of ``groups``, holding the group key under ``group_column``, ``"First"``
+        and ``"Last"`` (the smallest and largest run IDs, cast to ``int``), ``"Size"`` (the number of rows in the
         group), and the hidden ``"_group_index"``.
     """
     group_rows: List[Dict[str, Any]] = []
@@ -214,7 +263,7 @@ def build_group_rows(
         ids = [run_id(rows[index], run_idkey) for index in members]
         group_rows.append(
             {
-                group_by: rows[members[0]][group_by],
+                group_column: group_keys[group_index],
                 "First": min(ids),
                 "Last": max(ids),
                 "Size": len(members),
@@ -224,20 +273,20 @@ def build_group_rows(
     return group_rows
 
 
-def column_names(group_by: str) -> List[str]:
+def column_names(group_column: str) -> List[str]:
     """Return the visible column names.
 
     Parameters
     ----------
-    group_by : str
-        Key shown in the first column.
+    group_column : str
+        Name shown in the first column.
 
     Returns
     -------
     list of str
-        ``[group_by, "First", "Last", "Size"]``.
+        ``[group_column, "First", "Last", "Size"]``.
     """
-    return [group_by, *SUMMARY_COLUMNS]
+    return [group_column, *SUMMARY_COLUMNS]
 
 
 # -- widget ------------------------------------------------------------------
@@ -249,14 +298,21 @@ class RunGroupFrozenTable(ui.card):
     Parameters
     ----------
     rows : Sequence[Mapping[str, Any]]
-        Non-empty sequence of run dictionaries. Each must contain ``group_by``
-        and ``run_idkey``. The widget stores read-only deep copies, so later
-        changes to the caller's list or dicts have no effect, and the caller's
-        dicts are never mutated or enriched.
-    group_by : str
-        Run-dict key used to group rows. Rows whose values are equal (exact
-        equality, no whitespace or case normalization) form one group. Values
-        must be hashable.
+        Non-empty sequence of run dictionaries. Each must contain ``run_idkey``.
+        The widget stores read-only deep copies, so later changes to the
+        caller's list or dicts have no effect, and the caller's dicts are never
+        mutated or enriched.
+    grouping_function : Callable[[Mapping[str, Any]], str]
+        Function that receives the read-only mapping of one run and returns the
+        key of its group, called once per row. Rows with equal keys (exact
+        equality, no whitespace or case normalization) form one group. A result
+        that is not a string is converted: ``None`` becomes ``""`` and any other
+        value goes through ``str()``. Use :func:`pyoncatng.by_pv` to group by the
+        value of one key.
+    group_column : str
+        Name of the first column, which shows the key of each group. It must be
+        a non-empty string that is not ``"First"``, ``"Last"``, ``"Size"``, or
+        ``"_group_index"``.
     run_idkey : str, optional
         Run-dict key holding the run ID, used to compute ``"First"`` and
         ``"Last"``. Values must be ``int``, or ``str`` values that ``int()``
@@ -268,9 +324,9 @@ class RunGroupFrozenTable(ui.card):
     Raises
     ------
     ValueError
-        If ``rows`` is empty, a row is missing ``group_by``, a ``group_by``
-        value is not hashable, or a run ID is missing or not convertible to
-        ``int``.
+        If ``rows`` is empty, ``grouping_function`` is not callable or raises
+        for a row, ``group_column`` is invalid, or a run ID is missing or not
+        convertible to ``int``.
 
     Notes
     -----
@@ -286,31 +342,39 @@ class RunGroupFrozenTable(ui.card):
             {"ID": "125", "Title": "B"},
             {"ID": 129, "Title": "A"},
         ]
-        table = RunGroupFrozenTable(rows=rows, group_by="Title")
+        table = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("Title"), group_column="Title")
         table.groups  # ((0, 1, 3), (2,))
+        table.group_keys  # ("A", "B")
     """
 
     def __init__(
         self,
         *,
         rows: Sequence[Row],
-        group_by: str,
+        grouping_function: Optional[Callable[[Row], str]],
+        group_column: str,
         run_idkey: str = DEFAULT_RUN_IDKEY,
         _allow_empty: bool = False,
     ) -> None:
         frozen_rows = tuple(freeze(copy.deepcopy(dict(row))) for row in rows)
-        # Validate the representation that will actually be grouped. Freezing
-        # can change a custom hashable Mapping into an unhashable mapping proxy.
-        validate_rows(frozen_rows, group_by, run_idkey, allow_empty=_allow_empty)
+        validate_group_column(group_column)
+        if grouping_function is not None or not _allow_empty:
+            validate_grouping_function(grouping_function)
+        validate_rows(frozen_rows, run_idkey, allow_empty=_allow_empty)
+        # The function receives the frozen rows and is called once per row. The keys are stored and reused by the UI.
+        keys = compute_group_keys(frozen_rows, grouping_function)
+        groups, group_keys = build_groups(keys)
         super().__init__()
-        self._group_by = group_by
+        self._grouping_function = grouping_function
+        self._group_column = group_column
         self._run_idkey = run_idkey
         self._rows: Tuple[Row, ...] = frozen_rows
-        self._groups = build_groups(self._rows, group_by)
+        self._groups = groups
+        self._group_keys = group_keys
         self._build_ui()
 
     @classmethod
-    def empty(cls, *, group_by: str, run_idkey: str = DEFAULT_RUN_IDKEY) -> "RunGroupFrozenTable":
+    def empty(cls, *, group_column: str) -> "RunGroupFrozenTable":
         """Create a table that shows the column headers and no rows.
 
         The constructor rejects empty ``rows`` so that an empty list passed by
@@ -319,23 +383,22 @@ class RunGroupFrozenTable(ui.card):
 
         Parameters
         ----------
-        group_by : str
-            Key shown in the first column. It must not be a reserved name.
-        run_idkey : str, optional
-            Run-dict key holding the run ID. Defaults to ``"ID"``.
+        group_column : str
+            Name shown in the first column. It must not be a reserved name.
 
         Returns
         -------
         RunGroupFrozenTable
-            A table with empty ``rows`` and ``groups``, and columns
-            ``[group_by, "First", "Last", "Size"]``.
+            A table with empty ``rows``, ``groups``, and ``group_keys``, no
+            ``grouping_function``, and columns
+            ``[group_column, "First", "Last", "Size"]``.
 
         Raises
         ------
         ValueError
-            If ``group_by`` is reserved.
+            If ``group_column`` is not a non-empty string or is reserved.
         """
-        return cls(rows=(), group_by=group_by, run_idkey=run_idkey, _allow_empty=True)
+        return cls(rows=(), grouping_function=None, group_column=group_column, _allow_empty=True)
 
     def _build_ui(self) -> None:
         # Fill the available width and lay the table out in a column so it grows
@@ -347,9 +410,11 @@ class RunGroupFrozenTable(ui.card):
         with self:
             self._table = (
                 RunTable(
-                    columns=column_names(self._group_by),
-                    rows=build_group_rows(self._rows, self._groups, self._group_by, self._run_idkey),
-                    key_column=self._group_by,
+                    columns=column_names(self._group_column),
+                    rows=build_group_rows(
+                        self._rows, self._groups, self._group_keys, self._group_column, self._run_idkey
+                    ),
+                    key_column=self._group_column,
                 )
                 .classes("w-full")
                 .style("flex: 1 1 auto; min-height: 0")
@@ -368,9 +433,19 @@ class RunGroupFrozenTable(ui.card):
         return self._groups
 
     @property
-    def group_by(self) -> str:
-        """The run-dict key used to group rows."""
-        return self._group_by
+    def group_keys(self) -> Tuple[str, ...]:
+        """The key of each group, aligned with :attr:`groups` and shown in the first column."""
+        return self._group_keys
+
+    @property
+    def grouping_function(self) -> Optional[Callable[[Row], str]]:
+        """The function that returns the group key of a row, or ``None`` for a table created with :meth:`empty`."""
+        return self._grouping_function
+
+    @property
+    def group_column(self) -> str:
+        """The name of the first column."""
+        return self._group_column
 
     @property
     def run_idkey(self) -> str:

@@ -2,7 +2,8 @@
 
 Two layers (mirroring ``test_runtable_widget.py``):
 
-* **Unit tests** on the pure helpers (``freeze``, ``run_id``, ``validate_rows``,
+* **Unit tests** on the pure helpers (``freeze``, ``run_id``,
+  ``validate_group_column``, ``validate_rows``, ``compute_group_keys``,
   ``build_groups``, ``build_group_rows``, ``column_names``), which need no UI
   context.
 * **Widget tests** via NiceGUI's in-process ``user`` simulation. AG Grid cells
@@ -17,6 +18,7 @@ from types import MappingProxyType
 import pytest
 from nicegui.testing import User
 
+from pyoncatng import by_pv
 from pyoncatng.widgets.rungroupfrozentable import (
     GROUP_INDEX_KEY,
     RESERVED_GROUP_KEYS,
@@ -24,8 +26,10 @@ from pyoncatng.widgets.rungroupfrozentable import (
     build_group_rows,
     build_groups,
     column_names,
+    compute_group_keys,
     freeze,
     run_id,
+    validate_group_column,
     validate_rows,
 )
 from pyoncatng.widgets.runtable import RunTable
@@ -40,21 +44,26 @@ ROWS = [
 ]
 
 
-class HashableMapping(dict):
-    """Mapping used to verify validation after values are frozen."""
+def _groups(rows, column: str = "Title"):
+    """Group ``rows`` by the value of ``column``, as the widget does with ``by_pv``."""
+    return build_groups(compute_group_keys(rows, by_pv(column)))[0]
 
-    __hash__ = object.__hash__
+
+def _group_rows(rows, column: str = "Title", run_idkey: str = "ID"):
+    """Build the grid rows of ``rows`` grouped by the value of ``column``."""
+    groups, group_keys = build_groups(compute_group_keys(rows, by_pv(column)))
+    return build_group_rows(rows, groups, group_keys, column, run_idkey)
 
 
 # -- unit tests: grouping -----------------------------------------------------
 
 
 def test_build_groups_by_matching_values() -> None:
-    assert build_groups(ROWS, "Title") == ((0, 1, 3), (2,))
+    assert _groups(ROWS) == ((0, 1, 3), (2,))
 
 
 def test_build_groups_is_tuple_of_int_tuples() -> None:
-    groups = build_groups(ROWS, "Title")
+    groups = _groups(ROWS)
     assert isinstance(groups, tuple)
     assert all(isinstance(group, tuple) for group in groups)
     assert all(isinstance(index, int) for group in groups for index in group)
@@ -66,21 +75,21 @@ def test_build_groups_key_is_configurable() -> None:
         {"ID": 2, "Title": "A", "Sample": "S1"},
         {"ID": 3, "Title": "B", "Sample": "S2"},
     ]
-    assert build_groups(rows, "Sample") == ((0, 2), (1,))
+    assert _groups(rows, "Sample") == ((0, 2), (1,))
 
 
 def test_build_groups_follow_first_occurrence() -> None:
     rows = [{"ID": 1, "Title": "Z"}, {"ID": 2, "Title": "A"}, {"ID": 3, "Title": "Z"}]
-    assert build_groups(rows, "Title") == ((0, 2), (1,))
+    assert _groups(rows) == ((0, 2), (1,))
 
 
 def test_build_groups_use_exact_equality() -> None:
     rows = [{"ID": 1, "Title": "A"}, {"ID": 2, "Title": "A "}, {"ID": 3, "Title": "a"}]
-    assert build_groups(rows, "Title") == ((0,), (1,), (2,))
+    assert _groups(rows) == ((0,), (1,), (2,))
 
 
 def test_build_groups_store_indexes_not_rows() -> None:
-    groups = build_groups(ROWS, "Title")
+    groups = _groups(ROWS)
     assert not any(isinstance(item, dict) for group in groups for item in group)
 
 
@@ -88,8 +97,7 @@ def test_build_groups_store_indexes_not_rows() -> None:
 
 
 def test_group_rows_size_first_last() -> None:
-    groups = build_groups(ROWS, "Title")
-    assert build_group_rows(ROWS, groups, "Title") == [
+    assert _group_rows(ROWS) == [
         {"Title": "A", "First": 123, "Last": 129, "Size": 3, GROUP_INDEX_KEY: 0},
         {"Title": "B", "First": 125, "Last": 125, "Size": 1, GROUP_INDEX_KEY: 1},
     ]
@@ -97,25 +105,25 @@ def test_group_rows_size_first_last() -> None:
 
 def test_group_rows_first_last_independent_of_order() -> None:
     rows = [{"ID": 9, "Title": "A"}, {"ID": 2, "Title": "A"}, {"ID": 5, "Title": "A"}]
-    (row,) = build_group_rows(rows, build_groups(rows, "Title"), "Title")
+    (row,) = _group_rows(rows)
     assert (row["First"], row["Last"]) == (2, 9)
 
 
 def test_group_rows_cast_str_ids_to_int() -> None:
     rows = [{"ID": "10", "Title": "A"}, {"ID": "9", "Title": "A"}]
-    (row,) = build_group_rows(rows, build_groups(rows, "Title"), "Title")
+    (row,) = _group_rows(rows)
     # Compared as ints (9 < 10), not as strings ("10" < "9").
     assert (row["First"], row["Last"]) == (9, 10)
 
 
 def test_group_rows_run_idkey_is_configurable() -> None:
     rows = [{"run_number": 7, "Title": "A"}, {"run_number": 3, "Title": "A"}]
-    (row,) = build_group_rows(rows, build_groups(rows, "Title"), "Title", run_idkey="run_number")
+    (row,) = _group_rows(rows, run_idkey="run_number")
     assert (row["First"], row["Last"]) == (3, 7)
 
 
 def test_group_rows_have_no_sequence_or_range() -> None:
-    for row in build_group_rows(ROWS, build_groups(ROWS, "Title"), "Title"):
+    for row in _group_rows(ROWS):
         assert set(row) == {"Title", "First", "Last", "Size", GROUP_INDEX_KEY}
         assert not any(isinstance(value, str) and "-" in value for value in row.values())
 
@@ -130,43 +138,33 @@ def test_column_names_exclude_group_index() -> None:
 
 def test_validate_rejects_empty_rows() -> None:
     with pytest.raises(ValueError, match="must not be empty"):
-        validate_rows([], "Title")
+        validate_rows([])
 
 
 def test_validate_accepts_empty_rows_when_allowed() -> None:
-    validate_rows([], "Title", allow_empty=True)
+    validate_rows([], allow_empty=True)
 
 
-def test_validate_rejects_reserved_group_by_when_empty_allowed() -> None:
+@pytest.mark.parametrize("group_column", sorted(RESERVED_GROUP_KEYS))
+def test_validate_rejects_reserved_group_column(group_column: str) -> None:
     with pytest.raises(ValueError, match="is reserved"):
-        validate_rows([], "Size", allow_empty=True)
+        validate_group_column(group_column)
 
 
-@pytest.mark.parametrize("group_by", sorted(RESERVED_GROUP_KEYS))
-def test_validate_rejects_reserved_group_by(group_by: str) -> None:
-    with pytest.raises(ValueError, match="is reserved"):
-        validate_rows([{"ID": 1, group_by: "A"}], group_by)
-
-
-def test_validate_rejects_missing_group_by() -> None:
-    with pytest.raises(ValueError, match="missing the group_by key"):
-        validate_rows([{"ID": 1, "Title": "A"}, {"ID": 2}], "Title")
-
-
-def test_validate_rejects_unhashable_group_value() -> None:
-    with pytest.raises(ValueError, match="must be hashable"):
-        validate_rows([{"ID": 1, "Title": ["A"]}], "Title")
+def test_group_by_pv_on_a_missing_key_names_the_row() -> None:
+    with pytest.raises(ValueError, match=r"rows\[0\].*'Title'"):
+        compute_group_keys([{"ID": 1}], by_pv("Title"))
 
 
 @pytest.mark.parametrize("value", [None, 1.0, "12a", "", True, [1]])
 def test_validate_rejects_bad_run_id(value) -> None:
     with pytest.raises(ValueError, match="run ID"):
-        validate_rows([{"ID": value, "Title": "A"}], "Title")
+        validate_rows([{"ID": value, "Title": "A"}])
 
 
 def test_validate_rejects_missing_run_id() -> None:
     with pytest.raises(ValueError, match="missing the run_idkey"):
-        validate_rows([{"Title": "A"}], "Title")
+        validate_rows([{"Title": "A"}])
 
 
 def test_run_id_defaults_and_casts() -> None:
@@ -240,7 +238,7 @@ async def test_does_not_expose_data_changing_methods(user: User) -> None:
         assert not hasattr(widget, name), name
 
 
-@pytest.mark.parametrize("name", ["rows", "groups", "group_by", "run_idkey"])
+@pytest.mark.parametrize("name", ["rows", "groups", "group_keys", "grouping_function", "group_column", "run_idkey"])
 async def test_properties_are_read_only(user: User, name: str) -> None:
     await user.open("/rungroupfrozentable")
     widget = _widget(user)
@@ -252,12 +250,14 @@ async def test_properties_values(user: User) -> None:
     await user.open("/rungroupfrozentable")
     widget = _widget(user)
     assert widget.groups == ((0, 1, 3), (2,))
-    assert widget.group_by == "Title"
+    assert widget.group_keys == ("A", "B")
+    assert widget.grouping_function.__qualname__ == "by_pv('Title')"
+    assert widget.group_column == "Title"
     assert widget.run_idkey == "ID"
     assert [row["ID"] for row in widget.rows] == [124, 129, "125", 123]
 
 
-async def test_locks_group_by_column_and_keeps_runtable_options(user: User) -> None:
+async def test_locks_group_column_and_keeps_runtable_options(user: User) -> None:
     await user.open("/rungroupfrozentable")
     opts = _table(user).options
     assert [column["field"] for column in opts["columnDefs"]] == ["Title", "First", "Last", "Size"]
@@ -275,7 +275,7 @@ async def test_rows_are_read_only_copies(user: User) -> None:
     rows = [{"ID": 1, "Title": "A", "tags": ["x"], "meta": {"k": 1}}]
     original = copy.deepcopy(rows)
     with user:
-        widget = RunGroupFrozenTable(rows=rows, group_by="Title")
+        widget = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("Title"), group_column="Title")
     stored = widget.rows[0]
     assert stored is not rows[0]
     assert dict(stored) == {"ID": 1, "Title": "A", "tags": ("x",), "meta": MappingProxyType({"k": 1})}
@@ -292,7 +292,7 @@ async def test_caller_changes_have_no_effect(user: User) -> None:
     await user.open("/rungroupfrozentable")
     rows = [{"ID": 1, "Title": "A", "tags": ["x"]}, {"ID": 2, "Title": "B", "tags": []}]
     with user:
-        widget = RunGroupFrozenTable(rows=rows, group_by="Title")
+        widget = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("Title"), group_column="Title")
     row_data = copy.deepcopy(widget._table.options["rowData"])
 
     rows[0]["Title"] = "B"
@@ -309,15 +309,8 @@ async def test_caller_changes_have_no_effect(user: User) -> None:
 async def test_constructor_validates(user: User) -> None:
     await user.open("/rungroupfrozentable-empty")
     await user.should_see("error: rows must not be empty.")
-    with user, pytest.raises(ValueError, match="missing the group_by key"):
-        RunGroupFrozenTable(rows=[{"ID": 1}], group_by="Title")
-
-
-async def test_constructor_rejects_group_value_unhashable_after_freezing(user: User) -> None:
-    await user.open("/rungroupfrozentable-empty")
-    rows = [{"ID": 1, "Title": HashableMapping(value="A")}]
-    with user, pytest.raises(ValueError, match="must be hashable"):
-        RunGroupFrozenTable(rows=rows, group_by="Title")
+    with user, pytest.raises(ValueError, match=r"grouping_function failed for rows\[0\]"):
+        RunGroupFrozenTable(rows=[{"ID": 1}], grouping_function=by_pv("Title"), group_column="Title")
 
 
 async def test_selected_group_indexes(user: User, monkeypatch) -> None:
@@ -384,10 +377,10 @@ async def test_on_selection_change_delegates(user: User, monkeypatch) -> None:
 async def test_empty_has_headers_and_no_rows(user: User) -> None:
     await user.open("/rungroupfrozentable-empty")
     with user:
-        widget = RunGroupFrozenTable.empty(group_by="Title")
+        widget = RunGroupFrozenTable.empty(group_column="Title")
     assert widget.rows == ()
     assert widget.groups == ()
-    assert widget.group_by == "Title"
+    assert widget.group_column == "Title"
     assert widget.run_idkey == "ID"
     options = widget._table.options
     assert [column["field"] for column in options["columnDefs"]] == ["Title", "First", "Last", "Size"]
@@ -397,7 +390,7 @@ async def test_empty_has_headers_and_no_rows(user: User) -> None:
 async def test_empty_selection_accessors_return_nothing(user: User, monkeypatch) -> None:
     await user.open("/rungroupfrozentable-empty")
     with user:
-        widget = RunGroupFrozenTable.empty(group_by="Title")
+        widget = RunGroupFrozenTable.empty(group_column="Title")
     _stub_selection(monkeypatch, widget, [])
     assert await widget.selected_group_indexes() == ()
     assert await widget.selected_groups() == ()
@@ -407,19 +400,12 @@ async def test_empty_selection_accessors_return_nothing(user: User, monkeypatch)
 async def test_empty_rows_for_group_reports_no_groups(user: User) -> None:
     await user.open("/rungroupfrozentable-empty")
     with user:
-        widget = RunGroupFrozenTable.empty(group_by="Title")
+        widget = RunGroupFrozenTable.empty(group_column="Title")
     with pytest.raises(IndexError, match="the table has no groups"):
         widget.rows_for_group(0)
 
 
-async def test_empty_rejects_reserved_group_by(user: User) -> None:
+async def test_empty_rejects_reserved_group_column(user: User) -> None:
     await user.open("/rungroupfrozentable-empty")
     with user, pytest.raises(ValueError, match="is reserved"):
-        RunGroupFrozenTable.empty(group_by="Size")
-
-
-async def test_empty_uses_run_idkey(user: User) -> None:
-    await user.open("/rungroupfrozentable-empty")
-    with user:
-        widget = RunGroupFrozenTable.empty(group_by="Title", run_idkey="Run")
-    assert widget.run_idkey == "Run"
+        RunGroupFrozenTable.empty(group_column="Size")
