@@ -30,6 +30,7 @@ from pyoncatng.widgets.rungroupfrozentable import (
     freeze,
     run_id,
     validate_group_column,
+    validate_grouping_function,
     validate_rows,
 )
 from pyoncatng.widgets.runtable import RunTable
@@ -154,6 +155,40 @@ def test_validate_rejects_reserved_group_column(group_column: str) -> None:
 def test_group_by_pv_on_a_missing_key_names_the_row() -> None:
     with pytest.raises(ValueError, match=r"rows\[0\].*'Title'"):
         compute_group_keys([{"ID": 1}], by_pv("Title"))
+
+
+def test_compute_group_keys_wraps_a_failure_and_names_the_row() -> None:
+    def fail_on_second_row(row):
+        if row["ID"] == 2:
+            raise RuntimeError("boom")
+        return "A"
+
+    with pytest.raises(ValueError, match=r"rows\[1\].*boom") as excinfo:
+        compute_group_keys([{"ID": 1}, {"ID": 2}], fail_on_second_row)
+    assert isinstance(excinfo.value.__cause__, RuntimeError)
+
+
+@pytest.mark.parametrize(("result", "key"), [(1, "1"), (None, ""), ({"a": 1}, "{'a': 1}")])
+def test_compute_group_keys_converts_results_that_are_not_strings(result, key: str) -> None:
+    assert compute_group_keys([{"ID": 1}], lambda _row: result) == (key,)
+
+
+@pytest.mark.parametrize(("values", "key"), [((1, "1"), "1"), ((None, ""), "")])
+def test_values_with_the_same_string_form_share_a_group(values, key: str) -> None:
+    rows = [{"ID": 1, "v": values[0]}, {"ID": 2, "v": values[1]}]
+    assert build_groups(compute_group_keys(rows, lambda row: row["v"])) == (((0, 1),), (key,))
+
+
+@pytest.mark.parametrize("group_column", ["", 3, None])
+def test_validate_rejects_invalid_group_column(group_column) -> None:
+    with pytest.raises(ValueError, match="non-empty string"):
+        validate_group_column(group_column)
+
+
+@pytest.mark.parametrize("grouping_function", [None, "Title", 3])
+def test_validate_rejects_a_grouping_function_that_is_not_callable(grouping_function) -> None:
+    with pytest.raises(ValueError, match="must be callable"):
+        validate_grouping_function(grouping_function)
 
 
 @pytest.mark.parametrize("value", [None, 1.0, "12a", "", True, [1]])
@@ -313,6 +348,48 @@ async def test_constructor_validates(user: User) -> None:
         RunGroupFrozenTable(rows=[{"ID": 1}], grouping_function=by_pv("Title"), group_column="Title")
 
 
+async def test_grouping_function_is_called_once_per_row(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    calls: list = []
+
+    def counting(row):
+        calls.append(row["ID"])
+        return row["Title"]
+
+    with user:
+        widget = RunGroupFrozenTable(rows=ROWS, grouping_function=counting, group_column="Title")
+    # The grid is already built, and the keys were computed once and reused.
+    assert widget._table.options["rowData"][0]["Title"] == "A"
+    assert calls == [124, 129, "125", 123]
+
+
+async def test_constructor_rejects_a_grouping_function_that_is_not_callable(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user, pytest.raises(ValueError, match="must be callable"):
+        RunGroupFrozenTable(rows=ROWS, grouping_function="Title", group_column="Title")
+
+
+async def test_constructor_rejects_a_reserved_group_column(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user, pytest.raises(ValueError, match="is reserved"):
+        RunGroupFrozenTable(rows=ROWS, grouping_function=by_pv("Title"), group_column="Size")
+
+
+async def test_first_column_shows_the_group_keys(user: User) -> None:
+    await user.open("/rungroupfrozentable")
+    widget = _widget(user)
+    assert [row["Title"] for row in _table(user).options["rowData"]] == list(widget.group_keys)
+
+
+async def test_first_column_shows_the_key_not_the_raw_value(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    rows = [{"ID": 1, "v": 1}, {"ID": 2, "v": "1"}, {"ID": 3, "v": None}, {"ID": 4, "v": ""}]
+    with user:
+        widget = RunGroupFrozenTable(rows=rows, grouping_function=by_pv("v"), group_column="Value")
+    assert widget.group_keys == ("1", "")
+    assert [row["Value"] for row in widget._table.options["rowData"]] == ["1", ""]
+
+
 async def test_selected_group_indexes(user: User, monkeypatch) -> None:
     await user.open("/rungroupfrozentable")
     widget = _widget(user)
@@ -385,6 +462,15 @@ async def test_empty_has_headers_and_no_rows(user: User) -> None:
     options = widget._table.options
     assert [column["field"] for column in options["columnDefs"]] == ["Title", "First", "Last", "Size"]
     assert options["rowData"] == []
+
+
+async def test_empty_has_no_grouping_function_and_no_group_keys(user: User) -> None:
+    await user.open("/rungroupfrozentable-empty")
+    with user:
+        widget = RunGroupFrozenTable.empty(group_column="Title")
+    assert widget.grouping_function is None
+    assert widget.run_idkey == "ID"
+    assert widget.group_keys == ()
 
 
 async def test_empty_selection_accessors_return_nothing(user: User, monkeypatch) -> None:
