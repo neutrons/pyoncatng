@@ -527,6 +527,31 @@ async def test_a_mistyped_variable_is_reported_by_the_load(user: User) -> None:
         assert text in widget._message.text
 
 
+async def test_a_failing_grouping_function_clears_the_previous_load(user: User) -> None:
+    await user.open("/iptsrungroupfrozentable")
+    with user:
+        widget = IPTSRunGroupFrozenTable(
+            agent=_widget(user)._agent,
+            grouping_function=lambda row: row["Title"].upper(),
+            group_column="Title",
+        )
+    calls: list = []
+    widget.on_selection_change(lambda: calls.append("event"))
+    await _load(widget)
+    assert widget.groups == ((0, 1, 3), (2,))
+
+    # A run without a title gives None, so the function raises inside the inner table.
+    await _load(widget, [{"id": 1}])
+
+    assert widget.rows == ()
+    assert widget.groups == ()
+    assert widget.group_keys == ()
+    for text in ("Could not load runs for IPTS-24703:", "rows[0]"):
+        assert text in widget._message.text
+    # The failed replacement sends exactly one event, not one per attempt to build a table.
+    assert calls == ["event", "event"]
+
+
 async def test_container_and_inner_table_grow_with_the_widget(user: User) -> None:
     await user.open("/iptsrungroupfrozentable")
     widget = _widget(user)
