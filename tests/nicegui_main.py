@@ -6,7 +6,7 @@ works during the simulation). The page bodies build the widget lazily, at
 request time, so a test can patch the agent before opening a page.
 """
 
-from fakes import FakeAgent
+from fakes import FakeAgent, RecordedAgent
 from nicegui import ui
 
 from pyoncatng import by_pv
@@ -190,6 +190,17 @@ def iptsrungroupfrozentable_page() -> None:
     # Tests reach the fake agent via the widget element
     # (``IPTSRunGroupFrozenTable._agent``) to script ``Run.list`` before Load.
     IPTSRunGroupFrozenTable(agent=FakeAgent(), grouping_function=by_pv("Title"), group_column="Title")
+
+
+@ui.page("/iptstable-recorded")
+def iptstable_recorded_page() -> None:
+    # Answers from the recordings in ``tests/data/oncat``; no sign-in is needed.
+    IPTSTable(agent=RecordedAgent(), facility="SNS", instrument="USANS")
+
+
+@ui.page("/iptsrungroupfrozentable-recorded")
+def iptsrungroupfrozentable_recorded_page() -> None:
+    IPTSRunGroupFrozenTable(agent=RecordedAgent(), grouping_function=by_pv("Title"), group_column="Title")
 
 
 if __name__ in {"__main__", "__mp_main__"}:

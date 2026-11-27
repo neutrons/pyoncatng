@@ -177,6 +177,7 @@ tutorial-rungroupfrozentable = { cmd = "python tutorials/rungroupfrozentable/mai
 tutorial-iptsrungroupfrozentable = { cmd = "python tutorials/iptsrungroupfrozentable/main.py", description = "Run the IPTSRunGroupFrozenTable tutorial" }
 # Testing
 test = { description = "Run the test suite", cmd = "pytest" }
+record-oncat = { description = "Record the runs of an ONCat experiment for the tests", cmd = "python tests/record_oncat.py" }
 # Packaging
 conda-build-command = { cmd = "pixi publish --target-channel ./local-channel", description = "Build the conda package command" }
 conda-build = { description = "Build the conda package", depends-on = [

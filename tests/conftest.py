@@ -1,9 +1,9 @@
-"""Shared fixtures: test configuration path and a scriptable fake ONCat agent."""
+"""Shared fixtures: test configuration path, a scriptable fake ONCat agent, and one backed by recordings."""
 
 import os
 
 import pytest
-from fakes import FakeAgent
+from fakes import FakeAgent, RecordedAgent
 
 import pyoncatng.configuration as configuration
 
@@ -16,15 +16,12 @@ def _config_path(monkeypatch):
     monkeypatch.setattr(configuration, "CONFIG_PATH_FILE", TEST_CONFIG)
 
 
-@pytest.fixture
-def fake_agent(monkeypatch):
-    """Patch ``build_agent`` so the service/widget use a scriptable fake.
+def _patch_build_agent(monkeypatch, agent):
+    """Patch ``build_agent`` so the service/widget use ``agent``.
 
-    The returned :class:`FakeAgent` records the arguments ``build_agent`` was
-    called with (``built``) and captures the token getter/setter and
-    verification handler the caller wired in.
+    ``agent`` records the arguments ``build_agent`` was called with (``built``) and captures the token
+    getter/setter and verification handler the caller wired in.
     """
-    agent = FakeAgent()
 
     def _build(oncat_url, client_id, *, token_getter, token_setter, verification_handler, scopes=None, timeout=10.0):
         agent.built = {
@@ -40,3 +37,15 @@ def fake_agent(monkeypatch):
 
     monkeypatch.setattr("pyoncatng.core.service.build_agent", _build)
     return agent
+
+
+@pytest.fixture
+def fake_agent(monkeypatch):
+    """A scriptable :class:`FakeAgent` wired in place of the real agent."""
+    return _patch_build_agent(monkeypatch, FakeAgent())
+
+
+@pytest.fixture
+def recorded_agent(monkeypatch):
+    """A :class:`RecordedAgent` wired in place of the real agent; ``Run.list`` answers from the recordings."""
+    return _patch_build_agent(monkeypatch, RecordedAgent())
