@@ -16,6 +16,8 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import pyoncat
 
+# Where the recordings of real ONCat responses are kept.
+RECORDINGS_DIRECTORY = Path(__file__).parent / "data" / "oncat"
 RECORDING_FORMAT = 1
 _NAME_DIGEST_LENGTH = 32
 _IPTS_PREFIX = re.compile(r"^IPTS[-_]?", re.IGNORECASE)

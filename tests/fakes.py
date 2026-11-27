@@ -5,10 +5,7 @@ from pathlib import Path
 from typing import Union
 
 import pyoncat
-from recordings import RecordingNotFoundError, RecordingStore
-
-# Where the recordings of real ONCat responses are kept.
-RECORDINGS_DIRECTORY = Path(__file__).parent / "data" / "oncat"
+from recordings import RECORDINGS_DIRECTORY, RecordingNotFoundError, RecordingStore
 
 
 class _Facility:
