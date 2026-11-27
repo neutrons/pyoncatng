@@ -6,16 +6,22 @@ experiment is not obvious from a directory listing. This is obfuscation, not enc
 but anyone can compute it for a candidate IPTS.
 """
 
+import copy
 import gzip
 import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
+
+import pyoncat
 
 RECORDING_FORMAT = 1
 _NAME_DIGEST_LENGTH = 32
 _IPTS_PREFIX = re.compile(r"^IPTS[-_]?", re.IGNORECASE)
+# Top-level keys that ONCat returns for every run, whatever the projection.
+_ALWAYS_PROJECTED = ("id", "object", "type")
+_SORT_DIRECTIONS = ("ASCENDING", "DESCENDING")
 
 
 def _canonical_part(value: str, what: str) -> str:
@@ -79,3 +85,71 @@ def read_recording(path: Union[str, Path]) -> Dict[str, Any]:
     if document.get("format") != RECORDING_FORMAT:
         raise ValueError(f"Unsupported recording format {document.get('format')!r} in {path}.")
     return document
+
+
+class RecordingNotFoundError(pyoncat.NotFoundError):
+    """Raised when there is no recording for the requested facility, instrument, and experiment."""
+
+
+def project(content: Dict[str, Any], paths: Sequence[str]) -> Dict[str, Any]:
+    """The part of a run that ONCat returns for a projection.
+
+    The result always holds ``id``, ``object``, and ``type``, plus every dot-delimited path of ``paths`` that exists
+    in ``content``, either a leaf or a whole branch, nested as in the source. Missing paths are left out. The result
+    shares no data with ``content``.
+    """
+    result = {key: copy.deepcopy(content[key]) for key in _ALWAYS_PROJECTED if key in content}
+    for path in paths:
+        parts = path.split(".")
+        value = content
+        for part in parts:
+            if not isinstance(value, dict) or part not in value:
+                break
+            value = value[part]
+        else:
+            target = result
+            for part in parts[:-1]:
+                target = target.setdefault(part, {})
+            target[parts[-1]] = copy.deepcopy(value)
+    return result
+
+
+class RecordingStore:
+    """The recordings in one directory, queried like ``agent.Run.list``."""
+
+    def __init__(self, directory: Union[str, Path]) -> None:
+        self._directory = Path(directory)
+
+    def list_runs(
+        self,
+        *,
+        facility: str,
+        instrument: str,
+        experiment: str,
+        projection: Optional[Sequence[str]] = None,
+        sort_direction: str = "ASCENDING",
+    ) -> List[pyoncat.ONCatObject]:
+        """The recorded runs of one experiment, sorted by ``id``, as ``ONCatObject`` instances.
+
+        Without a ``projection`` the runs are returned as recorded. Only the arguments above are supported; any other
+        argument of the real ``Run.list`` (``sort_by``, ``page_size``, ``since_id``) raises ``TypeError``.
+
+        Raises
+        ------
+        RecordingNotFoundError
+            If there is no recording for the request.
+        ValueError
+            If ``sort_direction`` is neither ``"ASCENDING"`` nor ``"DESCENDING"``.
+        """
+        if sort_direction not in _SORT_DIRECTIONS:
+            raise ValueError(f"sort_direction must be one of {_SORT_DIRECTIONS}, got {sort_direction!r}.")
+        path = self._directory / recording_name(facility, instrument, experiment)
+        if not path.is_file():
+            raise RecordingNotFoundError(
+                f"No recording for facility={facility!r}, instrument={instrument!r}, experiment={experiment!r}. "
+                "Create it with `pixi run record-oncat <facility> <instrument> <ipts>`."
+            )
+        runs = sorted(read_recording(path)["runs"], key=lambda run: run["id"], reverse=sort_direction == "DESCENDING")
+        if projection is not None:
+            runs = [project(run, projection) for run in runs]
+        return [pyoncat.ONCatObject(content=run) for run in runs]
