@@ -112,7 +112,22 @@ def test_experiment_argument_is_normalized(text: str) -> None:
     assert _experiment(text) == "IPTS-24703"
 
 
-@pytest.mark.parametrize("text", ["", "  ", "24703", "IPTS-", "ipts_24703", "IPTS24703", "IPTS-24 703"])
-def test_experiment_argument_must_be_an_ipts_with_its_prefix(text: str) -> None:
+@pytest.mark.parametrize(
+    "text",
+    [
+        "",
+        "  ",
+        "24703",
+        "IPTS-",
+        "ipts_24703",
+        "IPTS24703",
+        "IPTS-24 703",
+        "IPTS-abc",
+        "IPTS-24703a",
+        "IPTS-1-2",
+        "IPTS-٣٤",
+    ],
+)
+def test_experiment_argument_must_be_an_ipts_with_its_number(text: str) -> None:
     with pytest.raises(argparse.ArgumentTypeError, match="IPTS-<number>"):
         _experiment(text)

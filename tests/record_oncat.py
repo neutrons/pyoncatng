@@ -76,7 +76,7 @@ def record(
 
 def _experiment(text: str) -> str:
     """The experiment as ``IPTS-<number>``. A bare number is refused: it could be taken for a run number."""
-    match = re.fullmatch(r"IPTS-(\S+)", text.strip(), flags=re.IGNORECASE)
+    match = re.fullmatch(r"IPTS-([0-9]+)", text.strip(), flags=re.IGNORECASE)
     if match is None:
         raise argparse.ArgumentTypeError(
             f"{text!r} must be written as IPTS-<number>, for example IPTS-24703, to make clear that it is an IPTS "
