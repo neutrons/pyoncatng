@@ -2,7 +2,7 @@
 
 Usage (signs in with the device flow, so a browser is needed)::
 
-    pixi run record-oncat SNS USANS 24703
+    pixi run record-oncat SNS USANS IPTS-24703
 
 The recording is written to ``tests/data/oncat`` under an obfuscated name (see :mod:`recordings`). Recording an
 experiment again replaces its file.
@@ -75,10 +75,14 @@ def record(
 
 
 def _experiment(text: str) -> str:
-    number = re.sub(r"^IPTS[-_]?", "", text.strip(), flags=re.IGNORECASE).strip()
-    if not number:
-        raise argparse.ArgumentTypeError(f"{text!r} does not name an IPTS.")
-    return f"IPTS-{number}"
+    """The experiment as ``IPTS-<number>``. A bare number is refused: it could be taken for a run number."""
+    match = re.fullmatch(r"IPTS-(\S+)", text.strip(), flags=re.IGNORECASE)
+    if match is None:
+        raise argparse.ArgumentTypeError(
+            f"{text!r} must be written as IPTS-<number>, for example IPTS-24703, to make clear that it is an IPTS "
+            "number and not a run number."
+        )
+    return f"IPTS-{match.group(1)}"
 
 
 def _build_signed_in_agent():
@@ -106,7 +110,7 @@ def main(argv: Optional[Sequence[str]] = None, *, agent=None) -> int:
     parser = argparse.ArgumentParser(description="Record the runs of one ONCat experiment for the tests.")
     parser.add_argument("facility", help="for example SNS")
     parser.add_argument("instrument", help="for example USANS")
-    parser.add_argument("ipts", type=_experiment, help="for example 24703 or IPTS-24703")
+    parser.add_argument("ipts", type=_experiment, metavar="IPTS-<number>", help="for example IPTS-24703")
     parser.add_argument("--projection", nargs="+", default=DEFAULT_PROJECTION, help="metadata paths to record")
     parser.add_argument("--directory", type=Path, default=RECORDINGS_DIRECTORY, help="where to write the recording")
     parser.add_argument("--allow-empty", action="store_true", help="record an experiment that has no runs")

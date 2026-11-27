@@ -149,7 +149,7 @@ class RecordingStore:
         if not path.is_file():
             raise RecordingNotFoundError(
                 f"No recording for facility={facility!r}, instrument={instrument!r}, experiment={experiment!r}. "
-                "Create it with `pixi run record-oncat <facility> <instrument> <ipts>`."
+                "Create it with `pixi run record-oncat <facility> <instrument> IPTS-<number>`."
             )
         runs = sorted(read_recording(path)["runs"], key=lambda run: run["id"], reverse=sort_direction == "DESCENDING")
         if projection is not None:

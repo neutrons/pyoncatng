@@ -81,7 +81,7 @@ def test_recorded_agent_can_replay_what_was_recorded(source, tmp_path) -> None:
 
 
 def test_main_records_and_prints_the_report(source, tmp_path, capsys) -> None:
-    assert main(["SNS", "USANS", "24703", "--directory", str(tmp_path)], agent=source) == 0
+    assert main(["SNS", "USANS", "IPTS-24703", "--directory", str(tmp_path)], agent=source) == 0
     assert (tmp_path / recording_name("SNS", "USANS", "IPTS-24703")).is_file()
     output = capsys.readouterr().out
     assert "Wrote" in output
@@ -96,15 +96,23 @@ def test_main_passes_the_options_to_record(source, tmp_path) -> None:
 
 
 def test_main_allow_empty(tmp_path) -> None:
-    assert main(["SNS", "USANS", "1", "--directory", str(tmp_path), "--allow-empty"], agent=FakeAgent()) == 0
+    assert main(["SNS", "USANS", "IPTS-1", "--directory", str(tmp_path), "--allow-empty"], agent=FakeAgent()) == 0
 
 
-@pytest.mark.parametrize("text", ["24703", "IPTS-24703", "ipts_24703", "  24703 "])
+def test_main_refuses_a_bare_number_and_writes_nothing(source, tmp_path, capsys) -> None:
+    with pytest.raises(SystemExit):
+        main(["SNS", "USANS", "24703", "--directory", str(tmp_path)], agent=source)
+    assert "must be written as IPTS-<number>" in capsys.readouterr().err
+    assert source.run_calls == 0
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("text", ["IPTS-24703", "ipts-24703", "  IPTS-24703  "])
 def test_experiment_argument_is_normalized(text: str) -> None:
     assert _experiment(text) == "IPTS-24703"
 
 
-@pytest.mark.parametrize("text", ["", "  ", "IPTS-", "ipts_"])
-def test_experiment_argument_must_name_an_ipts(text: str) -> None:
-    with pytest.raises(argparse.ArgumentTypeError):
+@pytest.mark.parametrize("text", ["", "  ", "24703", "IPTS-", "ipts_24703", "IPTS24703", "IPTS-24 703"])
+def test_experiment_argument_must_be_an_ipts_with_its_prefix(text: str) -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="IPTS-<number>"):
         _experiment(text)
