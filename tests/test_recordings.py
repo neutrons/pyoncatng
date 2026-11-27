@@ -71,12 +71,15 @@ RUNS = [{"id": 1, "datafiles": {"raw": {"metadata": {"entry": {"title": "A", "to
 
 def test_write_then_read_round_trip(tmp_path) -> None:
     path = tmp_path / "recording.json.gz"
-    write_recording(path, RUNS, pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00")
+    write_recording(
+        path, RUNS, projection=["datafiles.raw.metadata"], pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00"
+    )
     document = read_recording(path)
     assert document == {
         "format": RECORDING_FORMAT,
         "recorded_at": "2026-11-27T00:00:00",
         "pyoncat_version": "2.6",
+        "projection": ["datafiles.raw.metadata"],
         "runs": RUNS,
     }
 
@@ -84,15 +87,34 @@ def test_write_then_read_round_trip(tmp_path) -> None:
 def test_write_recording_is_deterministic_and_does_not_embed_the_file_name(tmp_path) -> None:
     first, second = tmp_path / "first_name.json.gz", tmp_path / "second_name.json.gz"
     for path in (first, second):
-        write_recording(path, RUNS, pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00")
+        write_recording(
+            path, RUNS, projection=["datafiles.raw.metadata"], pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00"
+        )
     assert first.read_bytes() == second.read_bytes()
     assert b"first_name" not in first.read_bytes()
 
 
-def test_recording_holds_no_plain_instrument_or_experiment(tmp_path) -> None:
+def test_interrupted_write_keeps_the_previous_recording(tmp_path, monkeypatch) -> None:
     path = tmp_path / "recording.json.gz"
-    write_recording(path, RUNS, pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00")
-    assert set(read_recording(path)) == {"format", "recorded_at", "pyoncat_version", "runs"}
+    write_recording(path, RUNS, projection=["datafiles.raw.metadata"], pyoncat_version="2.6", recorded_at="first")
+    before = path.read_bytes()
+
+    def interrupt(*_):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(gzip.GzipFile, "write", interrupt)
+    with pytest.raises(KeyboardInterrupt):
+        write_recording(path, RUNS, projection=["datafiles.raw.metadata"], pyoncat_version="2.6", recorded_at="second")
+    assert path.read_bytes() == before
+    assert [entry.name for entry in tmp_path.iterdir()] == ["recording.json.gz"]
+
+
+def test_recording_header_has_only_the_expected_keys(tmp_path) -> None:
+    path = tmp_path / "recording.json.gz"
+    write_recording(
+        path, RUNS, projection=["datafiles.raw.metadata"], pyoncat_version="2.6", recorded_at="2026-11-27T00:00:00"
+    )
+    assert set(read_recording(path)) == {"format", "recorded_at", "pyoncat_version", "projection", "runs"}
 
 
 def test_read_recording_rejects_unknown_format(tmp_path) -> None:
@@ -164,6 +186,7 @@ def store(tmp_path) -> RecordingStore:
     write_recording(
         tmp_path / recording_name("SNS", "USANS", "IPTS-24703"),
         STORE_RUNS,
+        projection=["datafiles.raw.metadata"],
         pyoncat_version="2.6",
         recorded_at="2026-11-27T00:00:00",
     )
@@ -198,8 +221,25 @@ def test_store_without_projection_returns_runs_as_recorded(store) -> None:
     assert [run.to_dict() for run in runs] == sorted(STORE_RUNS, key=lambda run: run["id"])
 
 
-def test_store_normalizes_the_experiment(store) -> None:
-    assert len(store.list_runs(facility="sns", instrument="usans", experiment="24703")) == 3
+@pytest.mark.parametrize("path", [TITLE, "datafiles.raw.metadata", "id"])
+def test_store_accepts_a_projection_covered_by_the_recording(store, path: str) -> None:
+    assert len(store.list_runs(**REQUEST, projection=[path])) == 3
+
+
+@pytest.mark.parametrize("path", ["location", "datafiles.raw", "datafiles.raw.metadataX"])
+def test_store_refuses_a_projection_outside_the_recording(store, path: str) -> None:
+    with pytest.raises(ValueError, match=r"does not hold \['" + path + r"'\].*datafiles\.raw\.metadata.*--projection"):
+        store.list_runs(**REQUEST, projection=[TITLE, path])
+
+
+def test_store_ignores_the_case_of_facility_and_instrument(store) -> None:
+    assert len(store.list_runs(facility="sns", instrument="usans", experiment="IPTS-24703")) == 3
+
+
+@pytest.mark.parametrize("experiment", ["24703", "ipts-24703", "IPTS24703", "IPTS_24703", " IPTS-24703", "IPTS-"])
+def test_store_refuses_an_experiment_not_written_as_ipts_dash_number(store, experiment: str) -> None:
+    with pytest.raises(RecordingNotFoundError, match="IPTS-<number>"):
+        store.list_runs(facility="SNS", instrument="USANS", experiment=experiment)
 
 
 def test_store_missing_recording_raises_an_explicit_not_found_error(store) -> None:
@@ -213,6 +253,7 @@ def test_store_empty_recording_returns_an_empty_list(tmp_path) -> None:
     write_recording(
         tmp_path / recording_name("SNS", "USANS", "IPTS-2"),
         [],
+        projection=["datafiles.raw.metadata"],
         pyoncat_version="2.6",
         recorded_at="2026-11-27T00:00:00",
     )

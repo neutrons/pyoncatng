@@ -22,6 +22,20 @@ from recordings import RECORDINGS_DIRECTORY, recording_name, write_recording
 # The projection that returns every processing variable of a run.
 DEFAULT_PROJECTION = ["datafiles.raw.metadata"]
 
+# Entries such as ``user1`` hold the name and facility user ID of a member of the experiment team. The widgets do not
+# read them, and the recordings are public, so they are not recorded.
+_PERSONAL_ENTRY_KEY = re.compile(r"user\d+")
+
+
+def remove_personal_data(content: Dict[str, Any]) -> Dict[str, Any]:
+    """Remove the ``datafiles.<category>.metadata.entry.user<n>`` entries of a run dictionary, in place."""
+    for datafile in (content.get("datafiles") or {}).values():
+        entry = ((datafile or {}).get("metadata") or {}).get("entry")
+        if isinstance(entry, dict):
+            for key in [key for key in entry if _PERSONAL_ENTRY_KEY.fullmatch(key)]:
+                del entry[key]
+    return content
+
 
 def record(
     agent,
@@ -36,7 +50,8 @@ def record(
     """Fetch the runs of one experiment through ``agent`` and write their recording.
 
     The real service returns an empty list for an experiment that does not exist, so an empty result is refused
-    (nothing is written) unless ``allow_empty`` is set.
+    (nothing is written) unless ``allow_empty`` is set. The names and user IDs of the experiment team are left out
+    (see :func:`remove_personal_data`).
 
     Returns
     -------
@@ -61,7 +76,8 @@ def record(
     path.parent.mkdir(parents=True, exist_ok=True)
     write_recording(
         path,
-        [run.to_dict() for run in runs],
+        [remove_personal_data(run.to_dict()) for run in runs],
+        projection=projection,
         pyoncat_version=version("pyoncat"),
         recorded_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )

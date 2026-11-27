@@ -37,7 +37,9 @@ A test that needs realistic runs asks for the runs of an instrument and IPTS, as
    runs[0].get("datafiles.raw.metadata.entry.title")
 
 The runs are ``pyoncat.ONCatObject`` instances. Each holds only the projected paths, plus ``id``, ``object``, and
-``type``, as the real service returns them. A path that a run does not have gives ``None`` from ``get``. The runs
+``type``, as the real service returns them. A path that a run does not have gives ``None`` from ``get``. A path
+that the recording does not hold raises ``ValueError``: a recording stores the projection it was made with, and only
+those paths and the paths below them can be requested. The runs
 are sorted by ``id`` according to ``sort_direction``. The arguments ``sort_by``, ``page_size``, and ``since_id`` are
 not supported and raise ``TypeError``.
 
@@ -46,7 +48,9 @@ Missing Recordings
 
 A request for an experiment without a recording raises an error that names the facility, instrument, and
 experiment. The error is a ``pyoncat.NotFoundError``, so a mistyped IPTS fails the test instead of looking like an
-experiment without runs.
+experiment without runs. The same error is raised when the experiment is not written exactly as ``IPTS-<number>``,
+for example the bare number ``24703``, because ONCat finds no runs for it. A widget that accepts a bare number must
+add the prefix before it calls ``Run.list``.
 
 The real service answers an unknown experiment with an empty list, and an unknown instrument or facility with
 ``pyoncat.NotFoundError``. To test how a widget handles an experiment without runs, create the agent with
@@ -64,14 +68,15 @@ To add an experiment, sign in to ONCat and record it:
 Write the experiment with its ``IPTS-`` prefix. A bare number such as ``24703`` is refused, so that it cannot be
 taken for a run number.
 
-The command prints a URL and a code for the sign-in, fetches the metadata of each run but it does not
-fetch any neutron event data.
-The command reports the number of runs and the size of the file.
-Recording an experiment again replaces its
-file. An experiment without runs is refused, because ONCat also answers an unknown experiment with an empty list;
-add ``--allow-empty`` to record it anyway.
+The command prints a URL and a code for the sign-in, then fetches the metadata of each run, but no neutron event
+data. It reports the number of runs and the size of the file. Recording an experiment again replaces its file. An
+experiment without runs is refused, because ONCat also answers an unknown experiment with an empty list; add
+``--allow-empty`` to record it anyway.
 
-A recording is a compressed JSON file in ``tests/data/oncat`` (about 1.3 MB for the 278 runs of IPTS-24703). Its
+By default the command records ``datafiles.raw.metadata``, which holds every processing variable of a run. Use
+``--projection`` to record other paths, for example a top-level field such as ``location`` that a widget requests.
+
+A recording is a compressed JSON file in ``tests/data/oncat`` (about 1.2 MB for the 278 runs of IPTS-24703). Its
 name is a hash of the facility, instrument, and IPTS, so that the experiment is not obvious from a directory
 listing. This hides the name only; it is not encryption. The name of a recording is computed with:
 
@@ -81,8 +86,9 @@ listing. This hides the name only; it is not encryption. The name of a recording
 
    recording_name("SNS", "USANS", "IPTS-24703")
 
-A recording holds the real run metadata of the experiment and is committed to a public repository. Record only
-experiments that may be published.
+A recording holds the metadata of the experiment but leaves out the neutron event data and
+leaves out the ``user1``, ``user2``, ... metadata entries.
+Record only experiments whose metadata may be published.
 
 What the Fake Does Not Simulate
 -------------------------------

@@ -39,6 +39,11 @@ def test_record_forwards_the_projection(source, tmp_path) -> None:
     assert source.run_kwargs["projection"] == ["datafiles.raw.metadata.entry.title"]
 
 
+def test_record_header_holds_the_projection(source, tmp_path) -> None:
+    path = record(source, **REQUEST, projection=["datafiles.raw.metadata.entry.title"], directory=tmp_path)["path"]
+    assert read_recording(path)["projection"] == ["datafiles.raw.metadata.entry.title"]
+
+
 def test_record_header_holds_the_pyoncat_version_and_a_time(source, tmp_path) -> None:
     path = record(source, **REQUEST, directory=tmp_path)["path"]
     document = read_recording(path)
@@ -61,6 +66,16 @@ def test_record_reports_a_replacement(source, tmp_path) -> None:
 def test_record_creates_the_directory(source, tmp_path) -> None:
     record(source, **REQUEST, directory=tmp_path / "new" / "directory")
     assert (tmp_path / "new" / "directory" / recording_name("SNS", "USANS", "IPTS-24703")).is_file()
+
+
+def test_record_leaves_out_the_experiment_team(tmp_path) -> None:
+    entry = {"title": "A", "user1": {"name": "N", "facility_user_id": "1"}, "user12": {}, "username_note": "kept"}
+    content = {"id": 1, "object": "run", "type": "run", "datafiles": {"raw": {"metadata": {"entry": entry}}}}
+    agent = FakeAgent()
+    agent.run_result = [pyoncat.ONCatObject(content=content)]
+    path = record(agent, **REQUEST, directory=tmp_path)["path"]
+    recorded = read_recording(path)["runs"][0]["datafiles"]["raw"]["metadata"]["entry"]
+    assert recorded == {"title": "A", "username_note": "kept"}
 
 
 def test_record_refuses_an_experiment_without_runs(tmp_path) -> None:

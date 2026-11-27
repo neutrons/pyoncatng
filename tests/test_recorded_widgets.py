@@ -3,6 +3,7 @@
 The pages use a ``RecordedAgent``, so the widgets load real ONCat responses without signing in.
 """
 
+import pytest
 from nicegui.testing import User
 from recordings import RECORDINGS_DIRECTORY, read_recording, recording_name
 
@@ -23,10 +24,13 @@ def _element(user: User, kind: type):
     return next(iter(user.find(kind).elements))
 
 
-async def test_iptstable_loads_the_recorded_runs(user: User) -> None:
+@pytest.mark.parametrize("typed", ["24703", "IPTS-24703", "ipts-24703"])
+async def test_iptstable_loads_the_recorded_runs(user: User, typed: str) -> None:
     await user.open("/iptstable-recorded")
     widget = _element(user, IPTSTable)
-    widget._input.value = "24703"
+    # A bare number is accepted in the field. The recorded agent finds runs only for "IPTS-24703", so this also
+    # checks that the widget adds the prefix before it calls ONCat.
+    widget._input.value = typed
 
     await widget._on_load()
 

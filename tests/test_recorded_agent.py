@@ -20,6 +20,7 @@ def directory(tmp_path):
     write_recording(
         tmp_path / recording_name("SNS", "USANS", "IPTS-24703"),
         RUNS,
+        projection=["datafiles.raw.metadata"],
         pyoncat_version="2.6",
         recorded_at="2026-11-27T00:00:00",
     )
