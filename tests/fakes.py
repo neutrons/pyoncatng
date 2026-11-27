@@ -1,8 +1,14 @@
 """A scriptable fake ONCat agent shared across the test suite."""
 
 import types
+from pathlib import Path
+from typing import Union
 
 import pyoncat
+from recordings import RecordingNotFoundError, RecordingStore
+
+# Where the recordings of real ONCat responses are kept.
+RECORDINGS_DIRECTORY = Path(__file__).parent / "data" / "oncat"
 
 
 class _Facility:
@@ -29,7 +35,7 @@ class _Run:
         self._agent.run_kwargs = kwargs
         if self._agent.run_error is not None:
             raise self._agent.run_error
-        return list(self._agent.run_result)
+        return self._agent._list_runs(**kwargs)
 
 
 class FakeAgent:
@@ -82,6 +88,10 @@ class FakeAgent:
     def Run(self) -> _Run:  # noqa: N802 - mirrors the pyoncat resource API
         return _Run(self)
 
+    def _list_runs(self, **kwargs):  # noqa: ARG002 - the arguments are used by subclasses
+        """The runs that ``Run.list`` returns once ``run_error`` has been checked."""
+        return list(self.run_result)
+
     def has_stored_token(self) -> bool:
         return self.tokened
 
@@ -106,3 +116,35 @@ class FakeAgent:
         if self.logout_error is not None:
             raise self.logout_error
         self.tokened = False
+
+
+class RecordedAgent(FakeAgent):
+    """A :class:`FakeAgent` whose ``Run.list`` answers from recordings of real ONCat responses.
+
+    Params
+    ------
+    directory : str or Path, optional
+        Where the recordings are. Defaults to ``tests/data/oncat``.
+    on_missing : str, optional
+        What a request without a recording does. ``"raise"`` (the default) raises
+        :class:`recordings.RecordingNotFoundError`, so that a mistyped IPTS fails loudly. ``"empty"`` returns an
+        empty list, as the real service does for an unknown experiment.
+
+    The login scripting, the facility probe, and the observations of :class:`FakeAgent` work unchanged;
+    ``run_result`` is not used.
+    """
+
+    def __init__(self, directory: Union[str, Path] = RECORDINGS_DIRECTORY, *, on_missing: str = "raise") -> None:
+        if on_missing not in ("raise", "empty"):
+            raise ValueError(f"on_missing must be 'raise' or 'empty', got {on_missing!r}.")
+        super().__init__()
+        self._store = RecordingStore(directory)
+        self._on_missing = on_missing
+
+    def _list_runs(self, **kwargs):
+        try:
+            return self._store.list_runs(**kwargs)
+        except RecordingNotFoundError:
+            if self._on_missing == "empty":
+                return []
+            raise
